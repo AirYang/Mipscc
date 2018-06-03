@@ -9,8 +9,9 @@
 // other include
 
 // this project other include
+#include "lexer.h"
 #include "para_init.h"
-#include "token.h"
+#include "parser.h"
 
 Mipscc::Mipscc(int argc, char** argv)
     : file_(),
@@ -36,6 +37,9 @@ void Mipscc::run() {
                 << std::endl;
     });
   }
+
+  Parser parser(tokens);
+  parser.parse();
 }
 
 void Mipscc::bufferInit() {
