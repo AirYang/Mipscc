@@ -10,10 +10,12 @@ Parser::Parser(std::shared_ptr<std::vector<Token>> tokens)
 void Parser::parse() {
   parsing_ = true;
   while (cur_ < tokens_->size()) {
-    auto look = tokens_->at(cur_);
-    if (!look.literal_.compare("typedef")) {
+    if (!tokens_->at(cur_).literal_.compare("typedef")) {
+      std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+
     } else {
     }
+    cur_func_ = nullptr;
   }
   parsing_ = false;
 }
@@ -162,5 +164,146 @@ std::shared_ptr<ReturnType> Parser::makeConstReturnType(int x) {
   res->ret_type_ = CONST_VAL;
   res->ref_ = std::make_shared<Identifier>(type_int_, 0, nullptr,
                                            std::make_shared<Declarator>());
+  return res;
+}
+
+std::shared_ptr<PType> Parser::parseTypeSpecifier(
+    std::shared_ptr<Declarator> defs) {
+  if (tokens_->at(cur_).type_ == Type::IDENTIFIER) {
+    std::shared_ptr<Environment> env = cur_env_;
+    std::shared_ptr<Identifier> id = nullptr;
+    while (env != nullptr) {
+      if ((id = findId(env->ids_, tokens_->at(cur_).literal_)) != nullptr) {
+        ++cur_;
+        assert(id->is_var_ == 0);
+        defs->dim_ = id->array_;
+        defs->level_ = id->level_;
+        return id->type_;
+      }
+      env = env->pre_;
+    }
+    assert(false);
+  } else if (!tokens_->at(cur_).literal_.compare("int")) {
+    ++cur_;
+    return type_int_;
+  } else if (!tokens_->at(cur_).literal_.compare("char")) {
+    ++cur_;
+    return type_char_;
+  } else if (!tokens_->at(cur_).literal_.compare("void")) {
+    ++cur_;
+    return type_void_;
+  } else if ((!tokens_->at(cur_).literal_.compare("struct")) ||
+             (!tokens_->at(cur_).literal_.compare("union"))) {
+    int is_struct = !tokens_->at(cur_).literal_.compare("struct");
+    std::string id = "";
+    ++cur_;
+    std::shared_ptr<PType> res = nullptr;
+    int same = 1;
+    if ((tokens_->at(cur_).type_ == Type::IDENTIFIER) ||
+        (!tokens_->at(cur_).literal_.compare("{"))) {
+      if (tokens_->at(cur_).type_ == Type::IDENTIFIER) {
+        id = tokens_->at(cur_).literal_;
+        ++cur_;
+        std::shared_ptr<Environment> env = cur_env_;
+        while ((env != nullptr) && (res == nullptr)) {
+          if ((res = findType(env->types_, id)) != nullptr) {
+            break;
+          }
+          env = env->pre_;
+          same = 0;
+        }
+      }
+      if ((res == nullptr) || (!same && res->width_ == -1)) {
+        res = std::make_shared<PType>();
+        res->literal_ = id;
+        res->is_struct_ = is_struct;
+        addTypeToEnv(res);
+      }
+      assert(res->is_struct_ == is_struct);
+      if (!tokens_->at(cur_).literal_.compare("{")) {
+        assert(res->width_ == -1);
+        ++cur_;
+        res->width_ = 0;
+
+        while (tokens_->at(cur_).literal_.compare("}")) {
+          std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+          std::shared_ptr<PType> sub_type = parseTypeSpecifier(def);
+          if (tokens_->at(cur_).literal_.compare(";")) {
+          } else {
+          }
+          assert(!tokens_->at(cur_).literal_.compare(";"));
+          ++cur_;
+        }
+        ++cur_;
+        if (res->width_ % 4) {
+          res->width_ += 4 - res->width_ % 4;
+        }
+        return res;
+      } else {
+        return res;
+      }
+    }
+  } else {
+    assert(false);
+  }
+}
+
+std::shared_ptr<PType> Parser::findType(std::shared_ptr<PType> iter,
+                                        std::string id) {
+  while (iter != nullptr) {
+    if (!iter->literal_.compare(id)) {
+      return iter;
+    }
+    iter = iter->nxt_;
+  }
+  return nullptr;
+}
+
+void Parser::addTypeToEnv(std::shared_ptr<PType> type) {
+  assert((!type->literal_.compare("")) ||
+         (!findType(cur_env_->types_, type->literal_)));
+  assert((addType(cur_env_->types_, type)) != nullptr);
+}
+
+std::shared_ptr<PType> Parser::addType(std::shared_ptr<PType>& head,
+                                       std::shared_ptr<PType> type) {
+  if ((findType(head, type->literal_) == nullptr) ||
+      (!type->literal_.compare(""))) {
+    type->nxt_ = head;
+    head = type;
+    return type;
+  }
+  return nullptr;
+}
+
+std::shared_ptr<Declarator> Parser::parseDeclarators() {
+  std::shared_ptr<Declarator> res = nullptr;
+  std::shared_ptr<Declarator> tmp = nullptr;
+  for (res = ;;) {
+  }
+  return res;
+}
+
+std::shared_ptr<Declarator> Parser::parseDeclarator() {}
+
+std::shared_ptr<Declarator> Parser::parsePlainDeclarator() {
+  std::shared_ptr<Declarator> res = std::shared_ptr<Declarator>();
+  while (!tokens_->at(cur_).literal_.compare("*")) {
+    ++cur_;
+    ++res->level_;
+  }
+  assert(tokens_->at(cur_).type_ == Type::IDENTIFIER);
+  res->literal_ = tokens_->at(cur_).literal_;
+  ++cur_;
+  return res;
+}
+
+std::shared_ptr<Identifier> Parser::parseParameters() {
+  std::shared_ptr<Identifier> res = nullptr;
+  if (!tokens_->at(cur_).literal_.compare("(")) {
+    int cnt = 0;
+
+    ++cur_;
+  }
   return res;
 }

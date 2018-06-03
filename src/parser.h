@@ -15,13 +15,27 @@ class Parser {
 
  private:
   void init();
+
   void addToFunc(std::shared_ptr<Function> f);
   void addVarToEnv(std::shared_ptr<Identifier> var);
+  void addTypeToEnv(std::shared_ptr<PType> type);
+
+  std::shared_ptr<PType> parseTypeSpecifier(std::shared_ptr<Declarator> defs);
+  std::shared_ptr<Declarator> parseDeclarators();
+  std::shared_ptr<Declarator> parseDeclarator();
+  std::shared_ptr<Declarator> parsePlainDeclarator();
+  std::shared_ptr<Identifier> parseParameters();
+
   std::shared_ptr<Identifier> addId(std::shared_ptr<Identifier>& head,
                                     std::shared_ptr<Identifier> id);
+  std::shared_ptr<PType> addType(std::shared_ptr<PType>& head,
+                                 std::shared_ptr<PType> type);
+
   std::shared_ptr<Function> findFunc(const std::string& id);
+  std::shared_ptr<PType> findType(std::shared_ptr<PType> iter, std::string id);
   std::shared_ptr<Identifier> findId(std::shared_ptr<Identifier> iter,
                                      const std::string& id);
+
   std::shared_ptr<ReturnType> makeConstReturnType(int x);
 
  private:
