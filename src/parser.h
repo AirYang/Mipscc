@@ -40,6 +40,9 @@ class Parser {
   std::shared_ptr<ReturnType> parseCastExpr();
   std::shared_ptr<ReturnType> parseExpr();
   std::shared_ptr<ReturnType> parseAssignExpr();
+  std::shared_ptr<ReturnType> parseUnaryExpr();
+  std::shared_ptr<ReturnType> parsePostfix(std::shared_ptr<ReturnType> th);
+  std::shared_ptr<ReturnType> parseArguments(std::shared_ptr<Function> func);
 
   std::shared_ptr<Identifier> addId(std::shared_ptr<Identifier>& head,
                                     std::shared_ptr<Identifier> id);
@@ -50,18 +53,38 @@ class Parser {
   std::shared_ptr<PType> findType(std::shared_ptr<PType> iter, std::string id);
   std::shared_ptr<Identifier> findId(std::shared_ptr<Identifier> iter,
                                      const std::string& id);
+  std::shared_ptr<Identifier> findStr(const std::string& s);
 
   std::shared_ptr<ReturnType> makeConstReturnType(int x);
   std::shared_ptr<ReturnType> makeTmpReturnType();
+  std::shared_ptr<ReturnType> makeVarReturnType(
+      std::shared_ptr<Identifier> var);
+  std::shared_ptr<ReturnType> makeFuncReturnType(
+      std::shared_ptr<Function> func);
+  std::shared_ptr<ReturnType> deltaMultipler(std::shared_ptr<ReturnType> th);
+
+  std::shared_ptr<ReturnType> mallocInstruction(
+      std::shared_ptr<ReturnType> size);
   std::shared_ptr<ReturnType> binaryInstruction(Type op,
                                                 std::shared_ptr<ReturnType> l,
                                                 std::shared_ptr<ReturnType> r);
   std::shared_ptr<ReturnType> arrayRead(std::shared_ptr<ReturnType> th);
+  std::shared_ptr<ReturnType> arrayWrite(std::shared_ptr<ReturnType> l,
+                                         std::shared_ptr<ReturnType> r);
   std::shared_ptr<Instruction> insCons(Type ins,
                                        std::shared_ptr<ReturnType> des,
                                        std::shared_ptr<ReturnType> a,
                                        std::shared_ptr<ReturnType> b);
+  std::shared_ptr<ReturnType> loadAddress(std::shared_ptr<ReturnType> th);
   void appendIns(std::shared_ptr<Block> th, std::shared_ptr<Instruction> ins);
+
+  bool isString(std::shared_ptr<ReturnType> th);
+  bool isInt(std::shared_ptr<ReturnType> th);
+  bool isOneDim(std::shared_ptr<ReturnType> th);
+  bool isPointer(std::shared_ptr<ReturnType> th);
+  bool isType();
+  bool canPass(std::shared_ptr<ReturnType> a, std::shared_ptr<ReturnType> b);
+  bool canAssign(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
 
  private:
   size_t cur_;
@@ -86,6 +109,7 @@ class Parser {
 
   std::shared_ptr<ReturnType> const_one_;
   std::shared_ptr<ReturnType> const_zero_;
+  std::shared_ptr<ReturnType> printer_;
 
   std::vector<std::shared_ptr<Instruction>> ins_buffer_;
 
