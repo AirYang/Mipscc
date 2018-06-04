@@ -302,8 +302,163 @@ std::shared_ptr<Identifier> Parser::parseParameters() {
   std::shared_ptr<Identifier> res = nullptr;
   if (!tokens_->at(cur_).literal_.compare("(")) {
     int cnt = 0;
+    for (++cur_; tokens_->at(cur_).literal_.compare(")");) {
+      std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+      std::shared_ptr<Declarator> decl = std::make_shared<Declarator>();
+      std::shared_ptr<PType> type = parseTypeSpecifier(def);
 
+      if ((!tokens_->at(cur_).literal_.compare("*")) ||
+          (tokens_->at(cur_).type_ == Type::IDENTIFIER)) {
+        while (!tokens_->at(cur_).literal_.compare("*")) {
+          ++cur_;
+          ++decl->level_;
+        }
+
+        if (tokens_->at(cur_).type_ == Type::IDENTIFIER) {
+          decl->literal_ = tokens_->at(cur_).literal_;
+          ++cur_;
+          decl->dim_ =
+        }
+      }
+
+      std::shared_ptr<Identifier> tmp =
+          std::make_shared<Identifier>(type, 1, def, decl);
+      if ((tmp->type_ == type_void_) && (tmp->level_ == 0)) {
+      }
+
+      tmp->nxt_ = res;
+      res = tmp;
+      if (!tokens_->at(cur_).literal_.compare(",")) {
+      }
+    }
     ++cur_;
   }
   return res;
+}
+
+std::shared_ptr<Array> Parser::parseArray() {
+  std::shared_ptr<Array> res = nullptr;
+  if (!tokens_->at(cur_).literal_.compare("[")) {
+    std::shared_ptr<Array> tmp = nullptr;
+    std::shared_ptr<Array> nxt = nullptr;
+    while (!tokens_->at(cur_).literal_.compare("[")) {
+      tmp = std::shared_ptr<Array>();
+      ++cur_;
+      tmp->num_ = -1;
+      if (tokens_->at(cur_).literal_.compare("]")) {
+        std::shared_ptr<ReturnType> num = parse
+      } else {
+      }
+      assert(!tokens_->at(cur_).literal_.compare("]"));
+      ++cur_;
+    }
+    nxt = nullptr;
+    tmp = nullptr;
+    int mul = 1;
+    while (res != nullptr) {
+    }
+    res = tmp;
+    while (tmp->nxt_ != nullptr) {
+    }
+  }
+  return res;
+}
+
+std::shared_ptr<ReturnType> Parser::parseConstExpr(){
+    std::shared_ptr<ReturnType> res}
+
+std::shared_ptr<ReturnType> Parser::parseLogicOrExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseLogicAndExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseAndExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseXorExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseOrExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseEqualityExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseRelationalExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseShiftExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseAdditiveExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseMultiExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseCastExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseExpr() {}
+
+std::shared_ptr<ReturnType> Parser::parseAssignExpr() {
+  std::shared_ptr<ReturnType> l = parseLogicOrExpr();
+  std::string op = "";
+  if ((tokens_->at(cur_).literal_[0] == '=') ||
+      (tokens_->at(cur_).literal_[1] == '=') ||
+      (tokens_->at(cur_).literal_[2] == '=')) {
+    assert(l->is_left_);
+    op = tokens_->at(cur_).literal_;
+    std::shared_ptr<ReturnType> r = parseAssignExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+
+    if (!op.compare("+=")) {
+      res =
+    }
+  }
+  return l;
+}
+
+std::shared_ptr<ReturnType> Parser::binaryInstruction(
+    Type op, std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r) {}
+
+std::shared_ptr<ReturnType> Parser::arrayRead(std::shared_ptr<ReturnType> th) {
+  assert(th->ret_type_ == ARRAY_ACCESS);
+  std::shared_ptr<ReturnType> res = makeTmpReturnType();
+  res->ref_ = Identifier::cloneIdentifier(th->ref_);
+  appendIns(block_top_, insCons(Type::INS_ARRAY_READ, res, th, nullptr));
+  return res;
+}
+
+std::shared_ptr<ReturnType> Parser::makeTmpReturnType() {
+  std::shared_ptr<ReturnType> res = std::make_shared<ReturnType>();
+  res->ret_type_ = VIRTUAL_REG;
+  res->belong_ = cur_func_;
+  res->reg_num_ = ++cur_func_->tmp_cnt_;
+  res->nxt_ = cur_func_->regs_;
+  res->sp_offset_ = 0;
+  cur_func_->regs_ = res;
+  return res;
+}
+
+std::shared_ptr<Instruction> Parser::insCons(Type ins,
+                                             std::shared_ptr<ReturnType> des,
+                                             std::shared_ptr<ReturnType> a,
+                                             std::shared_ptr<ReturnType> b) {
+  std::shared_ptr<Instruction> res = std::make_shared<Instruction>();
+  res->ins_ = ins;
+  res->des_ = des;
+  res->a_ = a;
+  res->b_ = b;
+  ins_buffer_.push_back(res);
+  res->ord_ = ins_buffer_.size();
+  return res;
+}
+
+void Parser::appendIns(std::shared_ptr<Block> th,
+                       std::shared_ptr<Instruction> ins) {
+  if ((cur_env_ == global_) && parsing_) {
+    th = global_init_;
+  }
+
+  assert(th != nullptr);
+  assert(ins != nullptr);
+
+  if ((ins->ins_ == Type::INS_MOVE) && (ins->des_->ref_ != nullptr) &&
+      (!ins->des_->ref_->id_.compare("")) && (ins->des_->reg_num_ == -1) &&
+      (ins->des_->ref_->arg_num_ == -1)) {
+    assert(false);
+  }
+
+  th->ins_.push_back(*ins);
 }

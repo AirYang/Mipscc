@@ -1,5 +1,6 @@
 #include <memory>
 #include <string>
+#include <vector>
 
 #ifndef SRC_TYPE_
 #define SRC_TYPE_
@@ -51,7 +52,8 @@ enum class Type {
   INS_BLT,
   INS_BGT,
   INS_BNE,
-  INS_BEQ
+  INS_BEQ,
+  NOT_A_TYPE
 };
 
 class Token;
@@ -93,9 +95,9 @@ class Block {
  public:
   int id_;
   int in_deg_;
-  int ins_size_;
-  int buffer_size_;
-  std::shared_ptr<Instruction> ins_;
+  // int ins_size_;
+  // int buffer_size_;
+  std::vector<Instruction> ins_;
   std::shared_ptr<Block> non_condi_;
   std::shared_ptr<Block> condi_;
 
@@ -137,6 +139,11 @@ class Identifier {
  public:
   Identifier(std::shared_ptr<PType> type, int is_var,
              std::shared_ptr<Declarator> a, std::shared_ptr<Declarator> b);
+
+  Identifier();
+
+  static std::shared_ptr<Identifier> cloneIdentifier(
+      std::shared_ptr<Identifier> id);
 
  public:
   std::string id_;
@@ -182,7 +189,7 @@ class Instruction {
   Instruction();
 
  public:
-  int ins_;
+  Type ins_;
   int ord_;
   std::shared_ptr<ReturnType> des_;
   std::shared_ptr<ReturnType> a_;

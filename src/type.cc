@@ -78,7 +78,11 @@ ReturnType::ReturnType()
       reg_(nullptr) {}
 
 Instruction::Instruction()
-    : ins_(0), ord_(0), des_(nullptr), a_(nullptr), b_(nullptr) {}
+    : ins_(Type::NOT_A_TYPE),
+      ord_(0),
+      des_(nullptr),
+      a_(nullptr),
+      b_(nullptr) {}
 
 Function::Function(std::shared_ptr<PType> type, std::shared_ptr<Declarator> a,
                    std::shared_ptr<Declarator> b)
@@ -112,13 +116,33 @@ Identifier::Identifier(std::shared_ptr<PType> type, int is_var,
   init_list_ = nullptr;
 }
 
+Identifier::Identifier() {}
+
+std::shared_ptr<Identifier> Identifier::cloneIdentifier(
+    std::shared_ptr<Identifier> id) {
+  std::shared_ptr<Identifier> res = std::make_shared<Identifier>();
+  res->type_ = id->type_;
+  res->level_ = id->level_;
+  res->array_ = id->array_;
+  res->env_belong_ = nullptr;
+  res->nxt_ = nullptr;
+  res->arg_num_ = -1;
+  res->from_ = 0;
+  res->id_ = "";
+  res->init_list_ = nullptr;
+  res->init_str_ = "";
+  res->init_type_ = INIT_NONE;
+  res->type_belong_ = nullptr;
+  return res;
+}
+
 int Block::blck_cnt_ = 0;
 
 Block::Block()
     : id_(++blck_cnt_),
       in_deg_(0),
-      ins_size_(0),
-      buffer_size_(0),
-      ins_(nullptr),
+      // ins_size_(0),
+      // buffer_size_(0),
+      ins_(),
       non_condi_(nullptr),
       condi_(nullptr) {}

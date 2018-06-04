@@ -25,6 +25,21 @@ class Parser {
   std::shared_ptr<Declarator> parseDeclarator();
   std::shared_ptr<Declarator> parsePlainDeclarator();
   std::shared_ptr<Identifier> parseParameters();
+  std::shared_ptr<Array> parseArray();
+  std::shared_ptr<ReturnType> parseConstExpr();
+  std::shared_ptr<ReturnType> parseLogicOrExpr();
+  std::shared_ptr<ReturnType> parseLogicAndExpr();
+  std::shared_ptr<ReturnType> parseAndExpr();
+  std::shared_ptr<ReturnType> parseXorExpr();
+  std::shared_ptr<ReturnType> parseOrExpr();
+  std::shared_ptr<ReturnType> parseEqualityExpr();
+  std::shared_ptr<ReturnType> parseRelationalExpr();
+  std::shared_ptr<ReturnType> parseShiftExpr();
+  std::shared_ptr<ReturnType> parseAdditiveExpr();
+  std::shared_ptr<ReturnType> parseMultiExpr();
+  std::shared_ptr<ReturnType> parseCastExpr();
+  std::shared_ptr<ReturnType> parseExpr();
+  std::shared_ptr<ReturnType> parseAssignExpr();
 
   std::shared_ptr<Identifier> addId(std::shared_ptr<Identifier>& head,
                                     std::shared_ptr<Identifier> id);
@@ -37,6 +52,16 @@ class Parser {
                                      const std::string& id);
 
   std::shared_ptr<ReturnType> makeConstReturnType(int x);
+  std::shared_ptr<ReturnType> makeTmpReturnType();
+  std::shared_ptr<ReturnType> binaryInstruction(Type op,
+                                                std::shared_ptr<ReturnType> l,
+                                                std::shared_ptr<ReturnType> r);
+  std::shared_ptr<ReturnType> arrayRead(std::shared_ptr<ReturnType> th);
+  std::shared_ptr<Instruction> insCons(Type ins,
+                                       std::shared_ptr<ReturnType> des,
+                                       std::shared_ptr<ReturnType> a,
+                                       std::shared_ptr<ReturnType> b);
+  void appendIns(std::shared_ptr<Block> th, std::shared_ptr<Instruction> ins);
 
  private:
   size_t cur_;
@@ -61,6 +86,11 @@ class Parser {
 
   std::shared_ptr<ReturnType> const_one_;
   std::shared_ptr<ReturnType> const_zero_;
+
+  std::vector<std::shared_ptr<Instruction>> ins_buffer_;
+
+  std::shared_ptr<Block> block_top_;
+  std::shared_ptr<Block> global_init_;
 };
 
 #endif  // SRC_PARSER_
