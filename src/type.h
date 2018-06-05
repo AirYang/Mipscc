@@ -234,6 +234,9 @@ class Declarator {
 
 class InitPair {
  public:
+  InitPair(int idx, int num, const std::string& label);
+
+ public:
   int pos_;
   int num_;
   std::string label_;

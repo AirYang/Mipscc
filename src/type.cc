@@ -146,3 +146,6 @@ Block::Block()
       ins_(),
       non_condi_(nullptr),
       condi_(nullptr) {}
+
+InitPair::InitPair(int idx, int num, const std::string& label)
+    : pos_(idx), num_(num), label_(label), nxt_(nullptr) {}

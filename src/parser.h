@@ -19,6 +19,8 @@ class Parser {
   void addToFunc(std::shared_ptr<Function> f);
   void addVarToEnv(std::shared_ptr<Identifier> var);
   void addTypeToEnv(std::shared_ptr<PType> type);
+  void addVarToType(std::shared_ptr<PType> type,
+                    std::shared_ptr<Identifier> var);
 
   std::shared_ptr<PType> parseTypeSpecifier(std::shared_ptr<Declarator> defs);
   std::shared_ptr<Declarator> parseDeclarators();
@@ -45,6 +47,11 @@ class Parser {
   std::shared_ptr<ReturnType> parseArguments(std::shared_ptr<Function> func);
   std::shared_ptr<ReturnType> parsePostfixExpr();
   std::shared_ptr<ReturnType> parsePrimaryExpr();
+  void parseCompoundStmt(std::shared_ptr<Block> iter_strt,
+                         std::shared_ptr<Block> iter_end);
+  void parseInitDeclarators(std::shared_ptr<PType> th,
+                            std::shared_ptr<Declarator> def);
+  void parseInitializer(std::shared_ptr<Identifier> var);
 
   std::shared_ptr<Identifier> addId(std::shared_ptr<Identifier>& head,
                                     std::shared_ptr<Identifier> id);
@@ -89,6 +96,8 @@ class Parser {
   bool canAssign(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
   bool canMul(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
   bool canSub(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
+
+  int varWidth(std::shared_ptr<Identifier> var);
 
  private:
   size_t cur_;
