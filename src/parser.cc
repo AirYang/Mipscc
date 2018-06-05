@@ -13,7 +13,7 @@ Parser::Parser(std::shared_ptr<std::vector<Token>> tokens)
 void Parser::parse() {
   parsing_ = true;
   while (cur_ < tokens_->size()) {
-    if (!tokens_->at(cur_).literal_.compare("typedef")) {
+    if (tokens_->at(cur_).literal_.compare("typedef")) {
       std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
       std::shared_ptr<PType> type = parseTypeSpecifier(def);
       if (!tokens_->at(cur_).literal_.compare(";")) {
@@ -435,7 +435,7 @@ std::shared_ptr<Declarator> Parser::parseDeclarator() {
 }
 
 std::shared_ptr<Declarator> Parser::parsePlainDeclarator() {
-  std::shared_ptr<Declarator> res = std::shared_ptr<Declarator>();
+  std::shared_ptr<Declarator> res = std::make_shared<Declarator>();
   while (!tokens_->at(cur_).literal_.compare("*")) {
     ++cur_;
     ++res->level_;
@@ -957,9 +957,12 @@ std::shared_ptr<ReturnType> Parser::parseExpr() {
 std::shared_ptr<ReturnType> Parser::parseAssignExpr() {
   std::shared_ptr<ReturnType> l = parseLogicOrExpr();
   std::string op = "";
-  if ((tokens_->at(cur_).literal_[0] == '=') ||
-      (tokens_->at(cur_).literal_[1] == '=') ||
-      (tokens_->at(cur_).literal_[2] == '=')) {
+  if (((0 < tokens_->at(cur_).literal_.size()) &&
+       (tokens_->at(cur_).literal_[0] == '=')) ||
+      ((1 < tokens_->at(cur_).literal_.size()) &&
+       (tokens_->at(cur_).literal_[1] == '=')) ||
+      ((2 < tokens_->at(cur_).literal_.size()) &&
+       (tokens_->at(cur_).literal_[2] == '='))) {
     assert(l->is_left_);
     op = tokens_->at(cur_).literal_;
     std::shared_ptr<ReturnType> r = parseAssignExpr();
@@ -2129,7 +2132,8 @@ void Parser::parseInitializer(std::shared_ptr<Identifier> var) {
     }
   } else {
     std::shared_ptr<ReturnType> res = parseAssignExpr();
-    assert((var->array_ == nullptr) || (res->ref_->id_[0] == '$'));
+    assert((var->array_ == nullptr) ||
+           ((0 < res->ref_->id_.size()) && (res->ref_->id_[0] == '$')));
     if (cur_env_ == global_) {
       if ((isString(res)) &&
           ((var->type_ == type_char_) &&
@@ -2162,7 +2166,8 @@ void Parser::parseInitializer(std::shared_ptr<Identifier> var) {
         assert(false);
       }
     } else {
-      if ((res->ref_->id_[0] == '$') && (var->array_ != nullptr)) {
+      if (((0 < res->ref_->id_.size()) && (res->ref_->id_[0] == '$')) &&
+          (var->array_ != nullptr)) {
         std::shared_ptr<Identifier> str = findStr(res->ref_->id_);
         std::shared_ptr<ReturnType> var_ret = makeVarReturnType(var);
         for (size_t i = 0; i < str->str_val_.size(); ++i) {
