@@ -52,6 +52,8 @@ class Parser {
   void parseInitDeclarators(std::shared_ptr<PType> th,
                             std::shared_ptr<Declarator> def);
   void parseInitializer(std::shared_ptr<Identifier> var);
+  void parseStmt(std::shared_ptr<Block> iter_strt,
+                 std::shared_ptr<Block> iter_end);
 
   std::shared_ptr<Identifier> addId(std::shared_ptr<Identifier>& head,
                                     std::shared_ptr<Identifier> id);
@@ -92,12 +94,15 @@ class Parser {
   bool isOneDim(std::shared_ptr<ReturnType> th);
   bool isPointer(std::shared_ptr<ReturnType> th);
   bool isType();
+  bool isBasicType(std::shared_ptr<PType> th);
   bool canPass(std::shared_ptr<ReturnType> a, std::shared_ptr<ReturnType> b);
   bool canAssign(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
   bool canMul(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
   bool canSub(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
 
   int varWidth(std::shared_ptr<Identifier> var);
+
+  void showReturnType(std::shared_ptr<ReturnType> th);
 
  private:
   size_t cur_;

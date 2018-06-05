@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include <algorithm>
+#include <iostream>
 
 Parser::Parser(std::shared_ptr<std::vector<Token>> tokens)
     : cur_(0), tokens_(tokens) {
@@ -14,8 +15,101 @@ void Parser::parse() {
   while (cur_ < tokens_->size()) {
     if (!tokens_->at(cur_).literal_.compare("typedef")) {
       std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+      std::shared_ptr<PType> type = parseTypeSpecifier(def);
+      if (!tokens_->at(cur_).literal_.compare(";")) {
+        ++cur_;
+        continue;
+      }
+      std::shared_ptr<Declarator> head = parseDeclarator();
+      if (head->is_func_) {
+        for (cur_func_ = func_head_; cur_func_ != nullptr;
+             cur_func_ = cur_func_->nxt_) {
+          if (!cur_func_->id_.compare(head->literal_)) {
+            break;
+          }
+        }
+        if (cur_func_ != nullptr) {
+          std::shared_ptr<Identifier> a = cur_func_->args_;
+          std::shared_ptr<Identifier> b = head->args_;
+          assert(type == cur_func_->type_);
+          while ((a != nullptr) && (b != nullptr)) {
+            assert(a->type_ == b->type_);
+            assert(a->level_ == b->level_);
+            assert(a->array_ == b->array_);
+            a = a->nxt_;
+            b = b->nxt_;
+          }
+        } else {
+          cur_func_ = std::make_shared<Function>(type, def, head);
+          addToFunc(cur_func_);
+        }
+      }
+      if (!tokens_->at(cur_).literal_.compare("{")) {
+        if (!cur_func_->id_.compare("__my_fake_printf__")) {
+          printer_ = std::make_shared<ReturnType>();
+          printer_->func_ = cur_func_;
+        }
 
+        assert((type->mem_ != nullptr) || (isBasicType(type)));
+        cur_func_->args_ = head->args_;
+        assert(head->is_func_);
+        add_args_ = 1;
+        block_top_ = cur_func_->block_ = std::make_shared<Block>();
+        cur_func_->end_ = std::make_shared<Block>();
+        parseCompoundStmt(nullptr, nullptr);
+        assert(cur_env_ == global_);
+      } else {
+        if (!tokens_->at(cur_).literal_.compare(";")) {
+          if (!head->is_func_) {
+            std::shared_ptr<Identifier> var =
+                std::make_shared<Identifier>(type, 1, def, head);
+            addVarToEnv(var);
+          }
+          ++cur_;
+          continue;
+        } else if (!tokens_->at(cur_).literal_.compare(",")) {
+          if (!head->is_func_) {
+            std::shared_ptr<Identifier> var =
+                std::make_shared<Identifier>(type, 1, def, head);
+            addVarToEnv(var);
+          }
+          ++cur_;
+        } else {
+          assert((head->dim_ == nullptr) || (!head->is_func_));
+          std::shared_ptr<Identifier> var =
+              std::make_shared<Identifier>(type, 1, def, head);
+          if (!tokens_->at(cur_).literal_.compare("=")) {
+            ++cur_;
+            assert(!((def != nullptr) && (def->is_func_)) && (!head->is_func_));
+            addVarToEnv(var);
+            parseInitializer(var);
+          }
+          if (!tokens_->at(cur_).literal_.compare(",")) {
+            ++cur_;
+          } else if (!tokens_->at(cur_).literal_.compare(";")) {
+            ++cur_;
+            continue;
+          } else {
+            assert(false);
+          }
+        }
+        parseInitDeclarators(type, def);
+        assert(!tokens_->at(cur_).literal_.compare(";"));
+        ++cur_;
+      }
     } else {
+      ++cur_;
+      std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+      std::shared_ptr<Declarator> decl = nullptr;
+      std::shared_ptr<PType> type = parseTypeSpecifier(def);
+      decl = parseDeclarators();
+
+      while (decl != nullptr) {
+        addVarToEnv(std::make_shared<Identifier>(type, 0, nullptr, decl));
+        decl = decl->nxt_;
+      }
+      assert(!tokens_->at(cur_).literal_.compare(";"));
+      ++cur_;
     }
     cur_func_ = nullptr;
   }
@@ -632,6 +726,10 @@ std::shared_ptr<ReturnType> Parser::parseEqualityExpr() {
     ++cur_;
     std::shared_ptr<ReturnType> r = parseRelationalExpr();
     std::shared_ptr<ReturnType> res = nullptr;
+    //
+    showReturnType(l);
+    showReturnType(r);
+    //
     assert(canSub(l, r));
     if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
       if (op == Type::INS_SEQ) {
@@ -667,6 +765,10 @@ std::shared_ptr<ReturnType> Parser::parseRelationalExpr() {
     ++cur_;
     std::shared_ptr<ReturnType> r = parseShiftExpr();
     std::shared_ptr<ReturnType> res = nullptr;
+    //
+    showReturnType(l);
+    showReturnType(r);
+    //
     assert(canSub(l, r));
     if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
       if (op == Type::INS_SLT) {
@@ -785,7 +887,7 @@ std::shared_ptr<ReturnType> Parser::parseMultiExpr() {
       op = Type::INS_MUL;
     } else if (!tokens_->at(cur_).literal_.compare("/")) {
       op = Type::INS_DIV;
-    } else if (!tokens_->at(cur_).literal_.compare) {
+    } else if (!tokens_->at(cur_).literal_.compare("%")) {
       op = Type::INS_REM;
     }
     ++cur_;
@@ -945,6 +1047,11 @@ std::shared_ptr<ReturnType> Parser::arrayRead(std::shared_ptr<ReturnType> th) {
   std::shared_ptr<ReturnType> res = makeTmpReturnType();
   res->ref_ = Identifier::cloneIdentifier(th->ref_);
   appendIns(block_top_, insCons(Type::INS_ARRAY_READ, res, th, nullptr));
+
+  //
+  std::cout << "array read" << std::endl;
+  showReturnType(res);
+  //
   return res;
 }
 
@@ -1373,7 +1480,7 @@ std::shared_ptr<ReturnType> Parser::parseArguments(
                                         nd_buffer[0], nullptr));
 
           appendIns(block_top_, insCons(Type::INS_PUTCHAR, nullptr,
-                                        makeConstReturnType('\N'), nullptr));
+                                        makeConstReturnType('\n'), nullptr));
           return nullptr;
         }
 
@@ -1532,6 +1639,10 @@ std::shared_ptr<ReturnType> Parser::mallocInstruction(
 
 bool Parser::canPass(std::shared_ptr<ReturnType> a,
                      std::shared_ptr<ReturnType> b) {
+  //
+  showReturnType(a);
+  showReturnType(b);
+  //
   if (canAssign(a, b)) {
     return true;
   }
@@ -1581,7 +1692,8 @@ bool Parser::isOneDim(std::shared_ptr<ReturnType> th) {
                                   (th->ref_->array_->nxt_ == nullptr)));
 }
 
-std::shared_ptr<ReturnType> makeFuncReturnType(std::shared_ptr<Function> func) {
+std::shared_ptr<ReturnType> Parser::makeFuncReturnType(
+    std::shared_ptr<Function> func) {
   std::shared_ptr<ReturnType> res = std::shared_ptr<ReturnType>();
   res->func_ = func;
   std::shared_ptr<Identifier> type_id = std::make_shared<Identifier>(
@@ -1771,9 +1883,62 @@ void Parser::addVarToType(std::shared_ptr<PType> type,
 
 void Parser::parseCompoundStmt(std::shared_ptr<Block> iter_strt,
                                std::shared_ptr<Block> iter_end) {
-
-                                 
-                               }
+  cur_env_ = std::make_shared<Environment>(cur_env_);
+  int is_func_body = 0;
+  if (add_args_) {
+    arg_num_ = 0;
+    assert(cur_func_ != nullptr);
+    std::shared_ptr<Identifier> args = cur_func_->args_;
+    std::shared_ptr<Identifier> rev = nullptr;
+    std::shared_ptr<Identifier> nxt = nullptr;
+    while (args != nullptr) {
+      std::shared_ptr<ReturnType> func = std::make_shared<ReturnType>();
+      std::shared_ptr<Identifier> new2 = std::make_shared<Identifier>(
+          args->type_, 1, empty_decl_, empty_decl_);
+      *new2 = *args;
+      func->func_ = cur_func_;
+      addVarToEnv(new2);
+      args = args->nxt_;
+    }
+    add_args_ = 0;
+    is_func_body = 1;
+  }
+  assert(!tokens_->at(cur_).literal_.compare("{"));
+  ++cur_;
+  while (tokens_->at(cur_).literal_.compare("}")) {
+    if (tokens_->at(cur_).literal_.compare("typedef")) {
+      if (isType()) {
+        std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+        std::shared_ptr<PType> type = parseTypeSpecifier(def);
+        if (!tokens_->at(cur_).literal_.compare(";")) {
+          ++cur_;
+          continue;
+        }
+        parseInitDeclarators(type, def);
+        assert(!tokens_->at(cur_).literal_.compare(";"));
+        ++cur_;
+      } else {
+        parseStmt(iter_strt, iter_end);
+      }
+    } else {
+      ++cur_;
+      std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+      std::shared_ptr<Declarator> decl = nullptr;
+      std::shared_ptr<PType> type = parseTypeSpecifier(def);
+      decl = parseDeclarators();
+      while (decl != nullptr) {
+        addVarToEnv(std::make_shared<Identifier>(type, 0, nullptr, decl));
+        decl = decl->nxt_;
+      }
+      assert(!tokens_->at(cur_).literal_.compare(";"));
+    }
+  }
+  if (is_func_body) {
+    block_top_ = block_top_->non_condi_ = cur_func_->end_;
+  }
+  ++cur_;
+  cur_env_ = cur_env_->pre_;
+}
 
 void Parser::parseInitDeclarators(std::shared_ptr<PType> th,
                                   std::shared_ptr<Declarator> def) {
@@ -2021,4 +2186,187 @@ void Parser::parseInitializer(std::shared_ptr<Identifier> var) {
     var->init_type_ = INIT_LIST;
     var->init_list_ = init;
   }
+}
+
+void Parser::parseStmt(std::shared_ptr<Block> iter_strt,
+                       std::shared_ptr<Block> iter_end) {
+  if (!tokens_->at(cur_).literal_.compare(";")) {
+    ++cur_;
+  } else if (!tokens_->at(cur_).literal_.compare("{")) {
+    parseCompoundStmt(iter_strt, iter_end);
+  } else if (!tokens_->at(cur_).literal_.compare("if")) {
+    ++cur_;
+    assert(!tokens_->at(cur_).literal_.compare("("));
+    ++cur_;
+    std::shared_ptr<ReturnType> expr = parseExpr();
+    assert(isPointer(expr) || isInt(expr));
+    std::shared_ptr<Block> the_block = block_top_;
+    std::shared_ptr<Block> new_end = std::make_shared<Block>();
+    if (expr->ret_type_ == ARRAY_ACCESS) {
+      expr = arrayRead(expr);
+    }
+    appendIns(block_top_, insCons(Type::INS_BNEZ, nullptr, expr, nullptr));
+    assert(!tokens_->at(cur_).literal_.compare(")"));
+    block_top_ = the_block->condi_ = std::make_shared<Block>();
+    ++cur_;
+    parseStmt(iter_strt, iter_end);
+    block_top_->non_condi_ = new_end;
+    if (!tokens_->at(cur_).literal_.compare("else")) {
+      block_top_ = the_block->non_condi_ = std::make_shared<Block>();
+      ++cur_;
+      parseStmt(iter_strt, iter_end);
+      block_top_->non_condi_ = new_end;
+    } else {
+      the_block->non_condi_ = new_end;
+    }
+    block_top_ = new_end;
+  } else if (!tokens_->at(cur_).literal_.compare("for")) {
+    ++cur_;
+    assert(!tokens_->at(cur_).literal_.compare("("));
+    ++cur_;
+    if (tokens_->at(cur_).literal_.compare(";")) {
+      parseExpr();
+    }
+    assert(!tokens_->at(cur_).literal_.compare(";"));
+    ++cur_;
+    std::shared_ptr<Block> loop = std::make_shared<Block>();
+    block_top_ = block_top_->non_condi_ = loop;
+    if (tokens_->at(cur_).literal_.compare(";")) {
+      std::shared_ptr<ReturnType> expr = parseExpr();
+      if (expr->ret_type_ == ARRAY_ACCESS) {
+        expr = arrayRead(expr);
+      }
+      appendIns(block_top_, insCons(Type::INS_BNEZ, nullptr, expr, nullptr));
+      assert(isPointer(expr) || isInt(expr));
+    } else {
+      appendIns(block_top_,
+                insCons(Type::INS_BNEZ, nullptr, const_one_, nullptr));
+    }
+    std::shared_ptr<Block> end2 = std::make_shared<Block>();
+    std::shared_ptr<Block> body = block_top_->condi_ =
+        std::make_shared<Block>();
+    block_top_->non_condi_ = end2;
+    assert(!tokens_->at(cur_).literal_.compare(";"));
+    ++cur_;
+    std::shared_ptr<Block> done = std::make_shared<Block>();
+    if (tokens_->at(cur_).literal_.compare(")")) {
+      block_top_ = done;
+      parseExpr();
+    }
+    assert(!tokens_->at(cur_).literal_.compare(")"));
+    ++cur_;
+    block_top_ = body;
+    parseStmt(done, end2);
+    block_top_->non_condi_ = done;
+    done->non_condi_ = loop;
+    block_top_ = end2;
+  } else if (!tokens_->at(cur_).literal_.compare("while")) {
+    ++cur_;
+    assert(!tokens_->at(cur_).literal_.compare("("));
+    ++cur_;
+    std::shared_ptr<Block> loop = std::make_shared<Block>();
+    std::shared_ptr<Block> end2 = std::make_shared<Block>();
+    std::shared_ptr<Block> condi = std::make_shared<Block>();
+    block_top_ = block_top_->non_condi_ = condi;
+    std::shared_ptr<ReturnType> expr = parseExpr();
+
+    assert(isInt(expr) || isPointer(expr));
+    assert(isPointer(expr) || isInt(expr));
+    assert(!tokens_->at(cur_).literal_.compare(")"));
+    if (expr->ret_type_ == ARRAY_ACCESS) {
+      expr = arrayRead(expr);
+    }
+    appendIns(block_top_, insCons(Type::INS_BNEZ, nullptr, expr, nullptr));
+    block_top_->condi_ = loop;
+    block_top_->condi_ = end2;
+    block_top_ = block_top_->condi_;
+    ++cur_;
+    parseStmt(condi, end2);
+    block_top_->non_condi_ = condi;
+    block_top_ = end2;
+  } else if (!tokens_->at(cur_).literal_.compare("continue")) {
+    assert(iter_strt != nullptr);
+    ++cur_;
+    assert(!tokens_->at(cur_).literal_.compare(";"));
+    ++cur_;
+    block_top_->non_condi_ = iter_strt;
+    block_top_ = std::make_shared<Block>();
+  } else if (!tokens_->at(cur_).literal_.compare("break")) {
+    assert(iter_strt != nullptr);
+    ++cur_;
+    assert(!tokens_->at(cur_).literal_.compare(";"));
+    ++cur_;
+    block_top_->non_condi_ = iter_end;
+    block_top_ = std::make_shared<Block>();
+  } else if (!tokens_->at(cur_).literal_.compare("return")) {
+    assert(cur_func_ != nullptr);
+    ++cur_;
+    if (!tokens_->at(cur_).literal_.compare(";")) {
+      assert((cur_func_->type_ == type_void_) && (cur_func_->level_ == 0));
+      appendIns(block_top_, insCons(Type::INS_RET, nullptr, nullptr, nullptr));
+      block_top_->non_condi_ = cur_func_->end_;
+      ++cur_;
+    } else {
+      std::shared_ptr<ReturnType> expr = parseExpr();
+      if (expr->ret_type_ == ARRAY_ACCESS) {
+        expr = arrayRead(expr);
+      }
+      appendIns(block_top_, insCons(Type::INS_RET, nullptr, expr, nullptr));
+      block_top_->non_condi_ = cur_func_->end_;
+      std::shared_ptr<ReturnType> func_type = std::make_shared<ReturnType>();
+      func_type->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+      func_type->ref_->type_ = cur_func_->type_;
+      func_type->ref_->level_ = cur_func_->level_;
+      assert(canAssign(func_type, expr));
+      assert(!tokens_->at(cur_).literal_.compare(";"));
+      ++cur_;
+    }
+    block_top_ = std::make_shared<Block>();
+  } else {
+    parseExpr();
+    assert(!tokens_->at(cur_).literal_.compare(";"));
+    ++cur_;
+  }
+}
+
+bool Parser::isBasicType(std::shared_ptr<PType> th) {
+  return (th == type_char_) || (th == type_void_) || (th == type_int_);
+}
+
+void Parser::showReturnType(std::shared_ptr<ReturnType> th) {
+  if (th->ret_type_ == CONST_VAL) {
+    std::cout << "\t"
+              << "const value: " << th->const_val_ << std::endl;
+    return;
+  }
+  if (th->func_ != nullptr) {
+    std::cout << "function: " << th->func_->id_ << std::endl;
+    return;
+  }
+  if (th->ref_->env_belong_ == global_) {
+    std::cout << th->ref_->id_ << std::endl;
+  } else {
+    if (th->ref_->env_belong_ != nullptr) {
+      std::cout << th->belong_->id_ << " " << th->ref_->id_ << std::endl;
+    } else {
+      std::cout << "tmp reg " << th.get() << std::endl;
+    }
+  }
+  std::cout << "{\nttype name: " << th->ref_->type_->literal_ << std::endl;
+  std::cout << "\tpointer level: " << th->ref_->level_ << std::endl;
+  if (th->ref_->array_ != nullptr) {
+    std::cout << "\tarray: ";
+    std::shared_ptr<Array> cur = th->ref_->array_;
+    while (cur != nullptr) {
+      std::cout << "[" << cur->num_ << "]";
+      cur = cur->nxt_;
+    }
+    std::cout << std::endl;
+  }
+  if (th->is_left_) {
+    std::cout << "\tleft value\n";
+  } else {
+    std::cout << "\tright value\n";
+  }
+  std::cout << "}" << std::endl;
 }
