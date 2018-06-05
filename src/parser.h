@@ -43,6 +43,8 @@ class Parser {
   std::shared_ptr<ReturnType> parseUnaryExpr();
   std::shared_ptr<ReturnType> parsePostfix(std::shared_ptr<ReturnType> th);
   std::shared_ptr<ReturnType> parseArguments(std::shared_ptr<Function> func);
+  std::shared_ptr<ReturnType> parsePostfixExpr();
+  std::shared_ptr<ReturnType> parsePrimaryExpr();
 
   std::shared_ptr<Identifier> addId(std::shared_ptr<Identifier>& head,
                                     std::shared_ptr<Identifier> id);
@@ -85,6 +87,8 @@ class Parser {
   bool isType();
   bool canPass(std::shared_ptr<ReturnType> a, std::shared_ptr<ReturnType> b);
   bool canAssign(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
+  bool canMul(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
+  bool canSub(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
 
  private:
   size_t cur_;
@@ -93,6 +97,7 @@ class Parser {
   bool parsing_;
   bool add_args_;
   int arg_num_;
+  int str_const_cnt_;
 
   std::shared_ptr<Environment> cur_env_;
   std::shared_ptr<Environment> global_;

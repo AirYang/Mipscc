@@ -24,6 +24,7 @@ void Parser::init() {
   parsing_ = false;
   add_args_ = false;
   arg_num_ = 0;
+  str_const_cnt_ = 0;
 
   cur_env_ = global_ = std::make_shared<Environment>(nullptr);
 
@@ -369,25 +370,343 @@ std::shared_ptr<ReturnType> Parser::parseConstExpr(){
 
 std::shared_ptr<ReturnType> Parser::parseLogicOrExpr() {}
 
-std::shared_ptr<ReturnType> Parser::parseLogicAndExpr() {}
+std::shared_ptr<ReturnType> Parser::parseLogicAndExpr() {
+  std::shared_ptr<ReturnType> l = parseAndExpr();
+  if (!tokens_->at(cur_).literal_.compare("&&")) {
+    std::shared_ptr<Block> one = std::make_shared<Block>();
+    std::shared_ptr<Block> zero = std::make_shared<Block>();
+    std::shared_ptr<Block> converge = std::make_shared<Block>();
+    std::shared_ptr<Block> the_block = block_top_;
+    std::shared_ptr<ReturnType> res = makeTmpReturnType();
+    res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+    block_top_ = one;
+    appendIns(block_top_, insCons(Type::INS_MOVE, res, const_one_, nullptr));
+    block_top_ = zero;
+    appendIns(block_top_, insCons(Type::INS_MOVE, res, const_zero_, nullptr));
+    block_top_ = the_block;
+    if (l->ret_type_ != CONST_VAL) {
+      if (l->ret_type_ == ARRAY_ACCESS) {
+        l = arrayRead(l);
+      }
+      appendIns(block_top_, insCons(Type::INS_BEQZ, nullptr, l, nullptr));
+      block_top_->condi_ = zero;
+      block_top_ = block_top_->non_condi_ = std::make_shared<Block>();
+    } else {
+      if ((l->ret_type_ == CONST_VAL) && (!l->const_val_)) {
+        block_top_->non_condi_ = zero;
+      }
+    }
+    while (!tokens_->at(cur_).literal_.compare("&&")) {
+      ++cur_;
+      std::shared_ptr<ReturnType> r = parseAndExpr();
+      assert(canSub(l, r) || canSub(r, l));
+      if (((l->ret_type_ == CONST_VAL) && (!l->const_val_)) ||
+          ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL))) {
+        std::shared_ptr<ReturnType> tmp =
+            makeConstReturnType(l->const_val_ && r->const_val_);
+        r = tmp;
+      } else {
+        if (r->ret_type_ == ARRAY_ACCESS) {
+          r = arrayRead(r);
+        }
 
-std::shared_ptr<ReturnType> Parser::parseAndExpr() {}
+        appendIns(block_top_, insCons(Type::INS_BEQZ, nullptr, r, nullptr));
+        block_top_->condi_ = zero;
+        block_top_ = block_top_->non_condi_ = std::make_shared<Block>();
+      }
+      l = r;
+    }
+    if ((l->const_val_ == CONST_VAL) && (!l->const_val_)) {
+      block_top_->non_condi_ = zero;
+    } else {
+      block_top_->non_condi_ = one;
+    }
+    zero->non_condi_ = converge;
+    zero->non_condi_ = converge;
+    block_top_ = converge;
+    return res;
+  } else {
+    return l;
+  }
+}
 
-std::shared_ptr<ReturnType> Parser::parseXorExpr() {}
+std::shared_ptr<ReturnType> Parser::parseAndExpr() {
+  std::shared_ptr<ReturnType> l = parseXorExpr();
+  while (!tokens_->at(cur_).literal_.compare("&")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseXorExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+    assert(canMul(l, r));
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      res = makeConstReturnType(l->const_val_ & r->const_val_);
+    } else {
+      res = binaryInstruction(Type::INS_AND, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
 
-std::shared_ptr<ReturnType> Parser::parseOrExpr() {}
+std::shared_ptr<ReturnType> Parser::parseXorExpr() {
+  std::shared_ptr<ReturnType> l = parseOrExpr();
+  while (!tokens_->at(cur_).literal_.compare("^")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseOrExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+    assert(canMul(l, r));
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      res = makeConstReturnType(l->const_val_ ^ r->const_val_);
+    } else {
+      res = binaryInstruction(Type::INS_XOR, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
 
-std::shared_ptr<ReturnType> Parser::parseEqualityExpr() {}
+std::shared_ptr<ReturnType> Parser::parseOrExpr() {
+  std::shared_ptr<ReturnType> l = parseEqualityExpr();
+  while (!tokens_->at(cur_).literal_.compare("|")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseEqualityExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+    assert(canMul(l, r));
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      res = makeConstReturnType(l->const_val_ | r->const_val_);
+    } else {
+      res = binaryInstruction(Type::INS_OR, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
 
-std::shared_ptr<ReturnType> Parser::parseRelationalExpr() {}
+std::shared_ptr<ReturnType> Parser::parseEqualityExpr() {
+  std::shared_ptr<ReturnType> l = parseRelationalExpr();
+  while ((!tokens_->at(cur_).literal_.compare("==")) ||
+         (!tokens_->at(cur_).literal_.compare("!="))) {
+    Type op = Type::NOT_A_TYPE;
+    if (!tokens_->at(cur_).literal_.compare("==")) {
+      op = Type::INS_SEQ;
+    } else {
+      op = Type::INS_SNE;
+    }
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseRelationalExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+    assert(canSub(l, r));
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      if (op == Type::INS_SEQ) {
+        res = makeConstReturnType(l->const_val_ == r->const_val_);
+      } else {
+        res = makeConstReturnType(l->const_val_ != r->const_val_);
+      }
+    } else {
+      res = binaryInstruction(op, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
 
-std::shared_ptr<ReturnType> Parser::parseShiftExpr() {}
+std::shared_ptr<ReturnType> Parser::parseRelationalExpr() {
+  std::shared_ptr<ReturnType> l = parseShiftExpr();
+  while ((!tokens_->at(cur_).literal_.compare("<")) ||
+         (!tokens_->at(cur_).literal_.compare(">")) ||
+         (!tokens_->at(cur_).literal_.compare(">=")) ||
+         (!tokens_->at(cur_).literal_.compare("<="))) {
+    Type op = Type::NOT_A_TYPE;
+    if (!tokens_->at(cur_).literal_.compare("<")) {
+      op = Type::INS_SLT;
+    } else if (!tokens_->at(cur_).literal_.compare(">")) {
+      op = Type::INS_SGT;
+    } else if (!tokens_->at(cur_).literal_.compare(">=")) {
+      op = Type::INS_SGE;
+    } else {
+      op = Type::INS_SLE;
+    }
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseShiftExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+    assert(canSub(l, r));
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      if (op == Type::INS_SLT) {
+        res = makeConstReturnType(l->const_val_ < r->const_val_);
+      } else if (op == Type::INS_SGT) {
+        res = makeConstReturnType(l->const_val_ > r->const_val_);
+      } else if (op == Type::INS_SLE) {
+        res = makeConstReturnType(l->const_val_ <= r->const_val_);
+      } else {
+        res = makeConstReturnType(l->const_val_ >= r->const_val_);
+      }
 
-std::shared_ptr<ReturnType> Parser::parseAdditiveExpr() {}
+    } else {
+      res = binaryInstruction(op, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
 
-std::shared_ptr<ReturnType> Parser::parseMultiExpr() {}
+std::shared_ptr<ReturnType> Parser::parseShiftExpr() {
+  std::shared_ptr<ReturnType> l = parseAdditiveExpr();
+  if ((!tokens_->at(cur_).literal_.compare("<<")) ||
+      (!tokens_->at(cur_).literal_.compare(">>"))) {
+    Type op = Type::NOT_A_TYPE;
+    if (!tokens_->at(cur_).literal_.compare("<<")) {
+      op = Type::INS_SLLV;
+    } else {
+      op = Type::INS_SRLV;
+    }
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseAdditiveExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+    assert(canMul(l, r));
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      if (op == Type::INS_SLLV) {
+        res = makeConstReturnType(l->const_val_ << r->const_val_);
+      } else {
+        res = makeConstReturnType(l->const_val_ >> r->const_val_);
+      }
+    } else {
+      res = binaryInstruction(op, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
 
-std::shared_ptr<ReturnType> Parser::parseCastExpr() {}
+std::shared_ptr<ReturnType> Parser::parseAdditiveExpr() {
+  std::shared_ptr<ReturnType> l = parseMultiExpr();
+  while ((!tokens_->at(cur_).literal_.compare("+")) ||
+         (!tokens_->at(cur_).literal_.compare("-"))) {
+    Type op = Type::NOT_A_TYPE;
+    if (!tokens_->at(cur_).literal_.compare("+")) {
+      op = Type::INS_ADD;
+    } else {
+      op = Type::INS_SUB;
+    }
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseMultiExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      if (op == Type::INS_ADD) {
+        res = makeConstReturnType(l->const_val_ + r->const_val_);
+      } else {
+        res = makeConstReturnType(l->const_val_ - r->const_val_);
+      }
+    } else {
+      if (op == Type::INS_ADD) {
+        if (isInt(l) && isInt(r)) {
+          res = binaryInstruction(op, l, r);
+          res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+        } else if (isPointer(l) && isInt(r)) {
+          res = binaryInstruction(Type::INS_MUL, r, deltaMultipler(l));
+          res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+          res = binaryInstruction(op, l, res);
+          res->ref_ = Identifier::cloneIdentifier(l->ref_);
+        } else {
+          assert(false);
+        }
+      } else {
+        if (isInt(l) && isInt(r)) {
+          res = binaryInstruction(op, l, r);
+          res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+        } else if (isPointer(l) && isInt(r)) {
+          res = binaryInstruction(Type::INS_MUL, r, deltaMultipler(l));
+          res->ref_ = Identifier::cloneIdentifier(const_zero_->ref_);
+          res = binaryInstruction(op, l, r);
+          res->ref_ = Identifier::cloneIdentifier(l->ref_);
+        } else if (isPointer(l) && isPointer(r)) {
+          res = binaryInstruction(op, l, r);
+          res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+          res = binaryInstruction(Type::INS_DIV, res, deltaMultipler(l));
+          res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+        } else {
+          assert(false);
+        }
+      }
+    }
+
+    l = res;
+  }
+  return l;
+}
+
+std::shared_ptr<ReturnType> Parser::parseMultiExpr() {
+  std::shared_ptr<ReturnType> l = parseCastExpr();
+  while ((!tokens_->at(cur_).literal_.compare("*")) ||
+         (!tokens_->at(cur_).literal_.compare("/")) ||
+         (!tokens_->at(cur_).literal_.compare("%"))) {
+    Type op = Type::NOT_A_TYPE;
+    if (!tokens_->at(cur_).literal_.compare("*")) {
+      op = Type::INS_MUL;
+    } else if (!tokens_->at(cur_).literal_.compare("/")) {
+      op = Type::INS_DIV;
+    } else if (!tokens_->at(cur_).literal_.compare) {
+      op = Type::INS_REM;
+    }
+    ++cur_;
+    std::shared_ptr<ReturnType> r = parseCastExpr();
+    std::shared_ptr<ReturnType> res = nullptr;
+
+    if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
+      if (op == Type::INS_MUL) {
+        res = makeConstReturnType(l->const_val_ * r->const_val_);
+      } else if (op == Type::INS_DIV) {
+        assert(r->const_val_);
+        res = makeConstReturnType(l->const_val_ / r->const_val_);
+      } else {
+        assert(r->const_val_);
+        res = makeConstReturnType(l->const_val_ % r->const_val_);
+      }
+    } else {
+      res = binaryInstruction(op, l, r);
+      res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+    }
+    l = res;
+  }
+  return l;
+}
+
+std::shared_ptr<ReturnType> Parser::parseCastExpr() {
+  if (!tokens_->at(cur_).literal_.compare("(")) {
+    ++cur_;
+    if (isType()) {
+      std::shared_ptr<ReturnType> res = std::make_shared<ReturnType>();
+      std::shared_ptr<Declarator> def = std::make_shared<Declarator>();
+      std::shared_ptr<PType> type = parseTypeSpecifier(def);
+      while (!tokens_->at(cur_).literal_.compare("*")) {
+        ++def->level_;
+        ++cur_;
+      }
+      res->ref_ = std::make_shared<Identifier>(type, 0, nullptr, def);
+      assert(!tokens_->at(cur_).literal_.compare(")"));
+      ++cur_;
+      std::shared_ptr<ReturnType> th = parseCastExpr();
+      assert(((th->ref_->level_) || (th->ref_->type_ == type_int_) ||
+              (th->ref_->type_ == type_char_)) &&
+             ((res->ref_->level_) || (res->ref_->type_ == type_int_) ||
+              (res->ref_->type_ == type_char_)));
+      th->ref_ = Identifier::cloneIdentifier(res->ref_);
+      return th;
+    } else {
+      std::shared_ptr<ReturnType> th = parseExpr();
+      assert(!tokens_->at(cur_).literal_.compare(")"));
+      ++cur_;
+      return parsePostfix(th);
+    }
+  } else {
+    return parseUnaryExpr();
+  }
+}
 
 std::shared_ptr<ReturnType> Parser::parseExpr() {
   std::shared_ptr<ReturnType> res = parseAssignExpr();
@@ -649,10 +968,76 @@ std::shared_ptr<ReturnType> Parser::parseUnaryExpr() {
     }
     return res;
   } else if (!tokens_->at(cur_).literal_.compare("+")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> th = parseCastExpr();
+    if (th->ret_type_ == CONST_VAL) {
+      return th;
+    }
+    assert(isInt(th));
+    if (th->ret_type_ == ARRAY_ACCESS) {
+      th = arrayRead(th);
+    }
+    return th;
   } else if (!tokens_->at(cur_).literal_.compare("-")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> th = parseCastExpr();
+    if (th->ret_type_ == CONST_VAL) {
+      th->const_val_ = -th->const_val_;
+      return th;
+    }
+    assert(isInt(th));
+    if (th->ret_type_ == ARRAY_ACCESS) {
+      th = arrayRead(th);
+    }
+    std::shared_ptr<ReturnType> res = makeTmpReturnType();
+    res->ref_ = Identifier::cloneIdentifier(th->ref_);
+    appendIns(block_top_, insCons(Type::INS_NEG, res, th, nullptr));
+    return res;
   } else if (!tokens_->at(cur_).literal_.compare("~")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> th = parseCastExpr();
+    assert(isInt(th));
+    if (th->ret_type_ == CONST_VAL) {
+      th->const_val_ = ~th->const_val_;
+      return th;
+    }
+    if (th->ret_type_ == ARRAY_ACCESS) {
+      th = arrayRead(th);
+    }
+    std::shared_ptr<ReturnType> res = makeTmpReturnType();
+    res->ref_ = Identifier::cloneIdentifier(th->ref_);
+    appendIns(block_top_, insCons(Type::INS_NOT, res, th, nullptr));
+    return res;
   } else if (!tokens_->at(cur_).literal_.compare("!")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> th = parseCastExpr();
+    assert(isInt(th) || isPointer(th));
+    if (th->ret_type_ == CONST_VAL) {
+      th->const_val_ = !th->const_val_;
+      return th;
+    } else {
+      std::shared_ptr<Block> one = std::make_shared<Block>();
+      std::shared_ptr<Block> zero = std::make_shared<Block>();
+      std::shared_ptr<Block> converge = std::make_shared<Block>();
+      std::shared_ptr<Block> the_block = block_top_;
+      if (th->ret_type_ == ARRAY_ACCESS) {
+        th = arrayRead(th);
+      }
+      std::shared_ptr<ReturnType> res = makeTmpReturnType();
+      res->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
+      block_top_ = one;
+      appendIns(block_top_, insCons(Type::INS_MOVE, res, const_one_, nullptr));
+      block_top_ = zero;
+      appendIns(block_top_, insCons(Type::INS_MOVE, res, const_zero_, nullptr));
+      block_top_ = the_block;
+      appendIns(block_top_, insCons(Type::INS_BEQZ, nullptr, th, nullptr));
+      block_top_->condi_ = one;
+      block_top_->non_condi_ = zero;
+      block_top_ = one->non_condi_ = zero->non_condi_ = converge;
+      return res;
+    }
   } else {
+    return parsePostfixExpr();
   }
 
   return nullptr;
@@ -1138,4 +1523,91 @@ std::shared_ptr<ReturnType> Parser::loadAddress(
   res->ref_ = Identifier::cloneIdentifier(th->ref_);
   ++res->ref_->level_;
   return res;
+}
+
+std::shared_ptr<ReturnType> Parser::parsePostfixExpr() {
+  return parsePostfix(parsePrimaryExpr());
+}
+
+std::shared_ptr<ReturnType> Parser::parsePrimaryExpr() {
+  if (tokens_->at(cur_).type_ == Type::IDENTIFIER) {
+    std::shared_ptr<Environment> env = nullptr;
+    std::shared_ptr<Identifier> var = nullptr;
+    for (env = cur_env_; env != nullptr; env = env->pre_) {
+      for (var = env->ids_; var != nullptr; var->nxt_) {
+        if (!var->id_.compare(tokens_->at(cur_).literal_)) {
+          ++cur_;
+          return makeVarReturnType(var);
+        }
+      }
+    }
+    std::shared_ptr<Function> func = nullptr;
+    for (func = func_head_; func != nullptr; func = func->nxt_) {
+      if (!func->id_.compare(tokens_->at(cur_).literal_)) {
+        ++cur_;
+        return makeFuncReturnType(func);
+      }
+    }
+    assert(false);
+  } else if (tokens_->at(cur_).type_ == Type::INT_CONST) {
+    std::shared_ptr<ReturnType> res =
+        makeConstReturnType(tokens_->at(cur_).int_val_);
+    ++cur_;
+    return res;
+  } else if (tokens_->at(cur_).type_ == Type::CHAR_CONST) {
+    std::shared_ptr<ReturnType> res =
+        makeConstReturnType(tokens_->at(cur_).char_val_);
+    ++cur_;
+    return res;
+  } else if (tokens_->at(cur_).type_ == Type::STRING_CONST) {
+    std::shared_ptr<Declarator> tmp_decl = std::make_shared<Declarator>();
+    tmp_decl->literal_ = "$string" + std::to_string(++str_const_cnt_);
+    tmp_decl->dim_ = std::make_shared<Array>();
+    tmp_decl->dim_->num_ = tokens_->at(cur_).str_val_.size() + 1;
+    tmp_decl->dim_->mul_ = 1;
+    std::shared_ptr<Identifier> id =
+        std::make_shared<Identifier>(type_char_, 1, nullptr, tmp_decl);
+    id->init_type_ = INIT_STR;
+    id->init_str_ = tokens_->at(cur_).literal_;
+    id->str_val_ = tokens_->at(cur_).str_val_;
+    std::shared_ptr<Environment> reservation = cur_env_;
+    cur_env_ = global_;
+    addVarToEnv(id);
+    cur_env_ = reservation;
+    ++cur_;
+    return makeVarReturnType(id);
+  } else if (!tokens_->at(cur_).literal_.compare("(")) {
+    ++cur_;
+    std::shared_ptr<ReturnType> res = parseExpr();
+    assert(!tokens_->at(cur_).literal_.compare(")"));
+    ++cur_;
+    return res;
+  } else {
+    assert(false);
+  }
+  return nullptr;
+}
+
+bool Parser::canMul(std::shared_ptr<ReturnType> l,
+                    std::shared_ptr<ReturnType> r) {
+  return isInt(l) && isInt(r);
+}
+
+bool Parser::canSub(std::shared_ptr<ReturnType> l,
+                    std::shared_ptr<ReturnType> r) {
+  if (canMul(l, r)) {
+    return true;
+  }
+
+  if (((isPointer(l)) || (l->ref_->type_ == type_int_) ||
+       (r->ref_->type_ == type_char_)) &&
+      ((r->ref_->type_ == type_int_) || (r->ref_->type_ == type_char_))) {
+    return true;
+  }
+
+  if (isPointer(l) && isPointer(r)) {
+    return true;
+  }
+
+  return false;
 }
