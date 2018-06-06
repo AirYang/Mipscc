@@ -16,10 +16,13 @@
 Mipscc::Mipscc(int argc, char** argv)
     : file_(),
       need_lexer_(false),
+      need_parser_(false),
       buffer_(std::make_shared<std::vector<char>>()) {
+  // program parameter init
   ParaInit pinit(argc, argv);
   file_ = pinit.getFile();
   need_lexer_ = pinit.needLexer();
+  need_parser_ = pinit.needParser();
 
   // input only *.c file
   assert((file_.size() > 1) && (file_.find_last_of(".c") == file_.size() - 1));
@@ -40,6 +43,9 @@ void Mipscc::run() {
 
   Parser parser(tokens);
   parser.parse();
+  if (need_parser_) {
+    parser.showIr();
+  }
 }
 
 void Mipscc::bufferInit() {

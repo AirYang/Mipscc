@@ -1053,8 +1053,8 @@ std::shared_ptr<ReturnType> Parser::arrayRead(std::shared_ptr<ReturnType> th) {
   appendIns(block_top_, insCons(Type::INS_ARRAY_READ, res, th, nullptr));
 
   //
-  std::cout << "array read" << std::endl;
-  showReturnType(res);
+  // std::cout << "array read" << std::endl;
+  // showReturnType(res);
   //
   return res;
 }
@@ -1645,8 +1645,8 @@ std::shared_ptr<ReturnType> Parser::mallocInstruction(
 bool Parser::canPass(std::shared_ptr<ReturnType> a,
                      std::shared_ptr<ReturnType> b) {
   //
-  showReturnType(a);
-  showReturnType(b);
+  // showReturnType(a);
+  // showReturnType(b);
   //
   if (canAssign(a, b)) {
     return true;
@@ -1761,7 +1761,6 @@ bool Parser::isType() {
     id = findId(env->ids_, tokens_->at(cur_).literal_);
     if ((id != nullptr) && (!id->is_var_)) {
       return true;
-      ;
     }
     env = env->pre_;
   }
@@ -2340,40 +2339,52 @@ bool Parser::isBasicType(std::shared_ptr<PType> th) {
   return (th == type_char_) || (th == type_void_) || (th == type_int_);
 }
 
-void Parser::showReturnType(std::shared_ptr<ReturnType> th) {
-  if (th->ret_type_ == CONST_VAL) {
-    std::cout << "\t"
-              << "const value: " << th->const_val_ << std::endl;
-    return;
-  }
-  if (th->func_ != nullptr) {
-    std::cout << "function: " << th->func_->id_ << std::endl;
-    return;
-  }
-  if (th->ref_->env_belong_ == global_) {
-    std::cout << th->ref_->id_ << std::endl;
-  } else {
-    if (th->ref_->env_belong_ != nullptr) {
-      std::cout << th->belong_->id_ << " " << th->ref_->id_ << std::endl;
-    } else {
-      std::cout << "tmp reg " << th.get() << std::endl;
-    }
-  }
-  std::cout << "{\nttype name: " << th->ref_->type_->literal_ << std::endl;
-  std::cout << "\tpointer level: " << th->ref_->level_ << std::endl;
-  if (th->ref_->array_ != nullptr) {
-    std::cout << "\tarray: ";
-    std::shared_ptr<Array> cur = th->ref_->array_;
-    while (cur != nullptr) {
-      std::cout << "[" << cur->num_ << "]";
-      cur = cur->nxt_;
-    }
-    std::cout << std::endl;
-  }
-  if (th->is_left_) {
-    std::cout << "\tleft value\n";
-  } else {
-    std::cout << "\tright value\n";
-  }
-  std::cout << "}" << std::endl;
+// void Parser::showReturnType(std::shared_ptr<ReturnType> th) {
+//   if (th->ret_type_ == CONST_VAL) {
+//     std::cout << "\t"
+//               << "const value: " << th->const_val_ << std::endl;
+//     return;
+//   }
+//   if (th->func_ != nullptr) {
+//     std::cout << "function: " << th->func_->id_ << std::endl;
+//     return;
+//   }
+//   if (th->ref_->env_belong_ == global_) {
+//     std::cout << th->ref_->id_ << std::endl;
+//   } else {
+//     if (th->ref_->env_belong_ != nullptr) {
+//       std::cout << th->belong_->id_ << " " << th->ref_->id_ << std::endl;
+//     } else {
+//       std::cout << "tmp reg " << th.get() << std::endl;
+//     }
+//   }
+//   std::cout << "{\nttype name: " << th->ref_->type_->literal_ << std::endl;
+//   std::cout << "\tpointer level: " << th->ref_->level_ << std::endl;
+//   if (th->ref_->array_ != nullptr) {
+//     std::cout << "\tarray: ";
+//     std::shared_ptr<Array> cur = th->ref_->array_;
+//     while (cur != nullptr) {
+//       std::cout << "[" << cur->num_ << "]";
+//       cur = cur->nxt_;
+//     }
+//     std::cout << std::endl;
+//   }
+//   if (th->is_left_) {
+//     std::cout << "\tleft value\n";
+//   } else {
+//     std::cout << "\tright value\n";
+//   }
+//   std::cout << "}" << std::endl;
+// }
+
+void Parser::showIr() {
+  std::cout
+      << "------ ------ ------ ------ << IR >> ------ ------ ------ ------"
+      << std::endl;
+  std::for_each(ins_buffer_.begin(), ins_buffer_.end(),
+                [](std::shared_ptr<Instruction> ir) {
+                  std::cout << "  " << ir->ord_ << ": " << TypeToStr(ir->ins_)
+                            << " " << (ir->a_.get()) << " " << (ir->b_.get())
+                            << " " << (ir->des_.get()) << std::endl;
+                });
 }

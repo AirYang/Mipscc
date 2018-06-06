@@ -56,6 +56,8 @@ enum class Type {
   NOT_A_TYPE
 };
 
+const char* TypeToStr(Type tp);
+
 class Token;
 class Function;
 class Array;

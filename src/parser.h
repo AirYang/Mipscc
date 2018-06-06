@@ -12,6 +12,7 @@ class Parser {
 
  public:
   void parse();
+  void showIr();
 
  private:
   void init();
@@ -102,7 +103,7 @@ class Parser {
 
   int varWidth(std::shared_ptr<Identifier> var);
 
-  void showReturnType(std::shared_ptr<ReturnType> th);
+  //   void showReturnType(std::shared_ptr<ReturnType> th);
 
  private:
   size_t cur_;

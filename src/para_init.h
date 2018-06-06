@@ -10,6 +10,7 @@ class ParaInit {
  public:
   std::string getFile();
   bool needLexer();
+  bool needParser();
 
  private:
   void parserInit();

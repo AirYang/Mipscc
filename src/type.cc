@@ -1,5 +1,66 @@
 #include "type.h"
 
+const char* TypeToStr(Type tp) {
+#define TYPE_TO_STR(x) \
+  case x:              \
+    return (#x);
+
+  switch (tp) {
+    // FIVE KIND
+    TYPE_TO_STR(Type::KEY)
+    TYPE_TO_STR(Type::IDENTIFIER)
+    TYPE_TO_STR(Type::INT_CONST)
+    TYPE_TO_STR(Type::CHAR_CONST)
+    TYPE_TO_STR(Type::STRING_CONST)
+    TYPE_TO_STR(Type::OPERATION)
+    // OPERATION
+    TYPE_TO_STR(Type::INS_ADD)
+    TYPE_TO_STR(Type::INS_SUB)
+    TYPE_TO_STR(Type::INS_MUL)
+    TYPE_TO_STR(Type::INS_DIV)
+    TYPE_TO_STR(Type::INS_OR)
+    TYPE_TO_STR(Type::INS_XOR)
+    TYPE_TO_STR(Type::INS_AND)
+    TYPE_TO_STR(Type::INS_SLLV)
+    TYPE_TO_STR(Type::INS_SRLV)
+    TYPE_TO_STR(Type::INS_SNE)
+    TYPE_TO_STR(Type::INS_SEQ)
+    TYPE_TO_STR(Type::INS_SGT)
+    TYPE_TO_STR(Type::INS_SLT)
+    TYPE_TO_STR(Type::INS_SGE)
+    TYPE_TO_STR(Type::INS_SLE)
+    TYPE_TO_STR(Type::INS_REM)
+    TYPE_TO_STR(Type::INS_NEG)
+    TYPE_TO_STR(Type::INS_BNEZ)
+    TYPE_TO_STR(Type::INS_BEQZ)
+    TYPE_TO_STR(Type::INS_PARA)
+    TYPE_TO_STR(Type::INS_CALL)
+    TYPE_TO_STR(Type::INS_PRINT_INT)
+    TYPE_TO_STR(Type::INS_PRINT_STRING)
+    TYPE_TO_STR(Type::INS_MALLOC)
+    TYPE_TO_STR(Type::INS_GETCHAR)
+    TYPE_TO_STR(Type::INS_PUTCHAR)
+    TYPE_TO_STR(Type::INS_MOVE)
+    TYPE_TO_STR(Type::INS_NOT)
+    TYPE_TO_STR(Type::INS_LD_ADDR)
+    TYPE_TO_STR(Type::INS_RET)
+    TYPE_TO_STR(Type::INS_HALT)
+    TYPE_TO_STR(Type::INS_ARRAY_WRITE)
+    TYPE_TO_STR(Type::INS_ARRAY_READ)
+    TYPE_TO_STR(Type::INS_BLE)
+    TYPE_TO_STR(Type::INS_BGE)
+    TYPE_TO_STR(Type::INS_BLT)
+    TYPE_TO_STR(Type::INS_BGT)
+    TYPE_TO_STR(Type::INS_BNE)
+    TYPE_TO_STR(Type::INS_BEQ)
+    // not a kind
+    TYPE_TO_STR(Type::NOT_A_TYPE)
+  }
+
+#undef TYPE_TO_STR
+  return "Unsupported Type";
+}
+
 Environment::Environment(std::shared_ptr<Environment> pre)
     : pre_(pre), types_(nullptr), ids_(nullptr) {}
 

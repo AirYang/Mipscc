@@ -18,6 +18,7 @@ class Mipscc {
  private:
   std::string file_;
   bool need_lexer_;
+  bool need_parser_;
   std::shared_ptr<std::vector<char>> buffer_;
 };
 
