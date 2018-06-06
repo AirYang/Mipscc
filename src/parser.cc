@@ -558,7 +558,7 @@ std::shared_ptr<ReturnType> Parser::parseLogicOrExpr() {
         l = arrayRead(l);
       }
       appendIns(block_top_, insCons(Type::INS_BNEZ, nullptr, l, nullptr));
-      block_top_->condi_ = zero;
+      block_top_->condi_ = one;
       block_top_ = block_top_->non_condi_ = std::make_shared<Block>();
     } else {
       if (l->const_val_) {
@@ -580,18 +580,18 @@ std::shared_ptr<ReturnType> Parser::parseLogicOrExpr() {
         }
 
         appendIns(block_top_, insCons(Type::INS_BNEZ, nullptr, r, nullptr));
-        block_top_->condi_ = zero;
+        block_top_->condi_ = one;
         block_top_ = block_top_->non_condi_ = std::make_shared<Block>();
       }
       l = r;
     }
-    if ((l->const_val_ == CONST_VAL) && (l->const_val_)) {
-      block_top_->non_condi_ = zero;
-    } else {
+    if ((l->ret_type_ == CONST_VAL) && (l->const_val_)) {
       block_top_->non_condi_ = one;
+    } else {
+      block_top_->non_condi_ = zero;
     }
     zero->non_condi_ = converge;
-    zero->non_condi_ = converge;
+    one->non_condi_ = converge;
     block_top_ = converge;
     return res;
   } else {
@@ -651,7 +651,7 @@ std::shared_ptr<ReturnType> Parser::parseLogicAndExpr() {
       block_top_->non_condi_ = one;
     }
     zero->non_condi_ = converge;
-    zero->non_condi_ = converge;
+    one->non_condi_ = converge;
     block_top_ = converge;
     return res;
   } else {
@@ -727,8 +727,8 @@ std::shared_ptr<ReturnType> Parser::parseEqualityExpr() {
     std::shared_ptr<ReturnType> r = parseRelationalExpr();
     std::shared_ptr<ReturnType> res = nullptr;
     //
-    showReturnType(l);
-    showReturnType(r);
+    // showReturnType(l);
+    // showReturnType(r);
     //
     assert(canSub(l, r));
     if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
@@ -766,8 +766,8 @@ std::shared_ptr<ReturnType> Parser::parseRelationalExpr() {
     std::shared_ptr<ReturnType> r = parseShiftExpr();
     std::shared_ptr<ReturnType> res = nullptr;
     //
-    showReturnType(l);
-    showReturnType(r);
+    // showReturnType(l);
+    // showReturnType(r);
     //
     assert(canSub(l, r));
     if ((l->ret_type_ == CONST_VAL) && (r->ret_type_ == CONST_VAL)) {
@@ -965,6 +965,7 @@ std::shared_ptr<ReturnType> Parser::parseAssignExpr() {
        (tokens_->at(cur_).literal_[2] == '='))) {
     assert(l->is_left_);
     op = tokens_->at(cur_).literal_;
+    ++cur_;
     std::shared_ptr<ReturnType> r = parseAssignExpr();
     std::shared_ptr<ReturnType> res = nullptr;
 
@@ -987,7 +988,7 @@ std::shared_ptr<ReturnType> Parser::parseAssignExpr() {
       res = binaryInstruction(Type::INS_SLLV, l, r);
       res->ref_ = Identifier::cloneIdentifier(l->ref_);
     } else if (!op.compare(">>=")) {
-      res = binaryInstruction(Type::INS_SLLV, l, r);
+      res = binaryInstruction(Type::INS_SRLV, l, r);
       res->ref_ = Identifier::cloneIdentifier(l->ref_);
     } else if (!op.compare("&=")) {
       res = binaryInstruction(Type::INS_AND, l, r);
@@ -1134,6 +1135,7 @@ std::shared_ptr<ReturnType> Parser::parseUnaryExpr() {
         appendIns(block_top_, insCons(Type::INS_MOVE, th, res, nullptr));
       } else {
         appendIns(block_top_, insCons(op, th, th, const_one_));
+        res = th;
       }
     }
     return res;
@@ -1311,7 +1313,7 @@ std::shared_ptr<ReturnType> Parser::parsePostfix(
         idx = makeConstReturnType(idx->const_val_ *
                                   deltaMultipler(th)->const_val_);
       } else {
-        if (deltaMultipler(th)->const_val_ != -1) {
+        if (deltaMultipler(th)->const_val_ != 1) {
           idx = binaryInstruction(Type::INS_MUL, idx, deltaMultipler(th));
           idx->ref_ = Identifier::cloneIdentifier(const_one_->ref_);
         }
@@ -1562,7 +1564,7 @@ std::shared_ptr<ReturnType> Parser::parseArguments(
       if (nd_buffer[i]->ret_type_ == ARRAY_ACCESS) {
         nd_buffer[i] = arrayRead(nd_buffer[i]);
       }
-      std::shared_ptr<ReturnType> bi = std::shared_ptr<ReturnType>();
+      std::shared_ptr<ReturnType> bi = std::make_shared<ReturnType>();
       bi->ref_ = arg;
       appendIns(block_top_, insCons(Type::INS_PARA, nullptr, nd_buffer[i], bi));
     }
@@ -1697,7 +1699,7 @@ bool Parser::isOneDim(std::shared_ptr<ReturnType> th) {
 
 std::shared_ptr<ReturnType> Parser::makeFuncReturnType(
     std::shared_ptr<Function> func) {
-  std::shared_ptr<ReturnType> res = std::shared_ptr<ReturnType>();
+  std::shared_ptr<ReturnType> res = std::make_shared<ReturnType>();
   res->func_ = func;
   std::shared_ptr<Identifier> type_id = std::make_shared<Identifier>(
       func->type_, 0, nullptr, std::make_shared<Declarator>());
@@ -1784,7 +1786,7 @@ std::shared_ptr<ReturnType> Parser::parsePrimaryExpr() {
     std::shared_ptr<Environment> env = nullptr;
     std::shared_ptr<Identifier> var = nullptr;
     for (env = cur_env_; env != nullptr; env = env->pre_) {
-      for (var = env->ids_; var != nullptr; var->nxt_) {
+      for (var = env->ids_; var != nullptr; var = var->nxt_) {
         if (!var->id_.compare(tokens_->at(cur_).literal_)) {
           ++cur_;
           return makeVarReturnType(var);
@@ -2283,7 +2285,7 @@ void Parser::parseStmt(std::shared_ptr<Block> iter_strt,
     }
     appendIns(block_top_, insCons(Type::INS_BNEZ, nullptr, expr, nullptr));
     block_top_->condi_ = loop;
-    block_top_->condi_ = end2;
+    block_top_->non_condi_ = end2;
     block_top_ = block_top_->condi_;
     ++cur_;
     parseStmt(condi, end2);
