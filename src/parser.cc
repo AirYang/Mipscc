@@ -492,7 +492,7 @@ std::shared_ptr<Array> Parser::parseArray() {
     std::shared_ptr<Array> tmp = nullptr;
     std::shared_ptr<Array> nxt = nullptr;
     while (!tokens_->at(cur_).literal_.compare("[")) {
-      tmp = std::shared_ptr<Array>();
+      tmp = std::make_shared<Array>();
       ++cur_;
       tmp->num_ = -1;
       if (tokens_->at(cur_).literal_.compare("]")) {
@@ -2384,7 +2384,8 @@ void Parser::showIr() {
   std::for_each(ins_buffer_.begin(), ins_buffer_.end(),
                 [](std::shared_ptr<Instruction> ir) {
                   std::cout << "  " << ir->ord_ << ": " << TypeToStr(ir->ins_)
-                            << " " << (ir->a_.get()) << " " << (ir->b_.get())
-                            << " " << (ir->des_.get()) << std::endl;
+                            << " " << ((ir->a_.get()) ? 1 : 0) << " "
+                            << ((ir->b_.get()) ? 1 : 0) << " "
+                            << ((ir->des_.get()) ? 1 : 0) << std::endl;
                 });
 }
