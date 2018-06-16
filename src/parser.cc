@@ -1369,8 +1369,8 @@ std::shared_ptr<ReturnType> Parser::parsePostfix(
       th = res;
     } else if (!tokens_->at(cur_).literal_.compare("->")) {
       ++cur_;
-      assert((th->ref_->level_ == -1) || ((th->ref_->array_ != nullptr) &&
-                                          (th->ref_->array_->nxt_ == nullptr)));
+      assert((th->ref_->level_ == 1) || ((th->ref_->array_ != nullptr) &&
+                                         (th->ref_->array_->nxt_ == nullptr)));
       assert(tokens_->at(cur_).type_ == Type::IDENTIFIER);
       std::shared_ptr<Identifier> mem = th->ref_->type_->mem_;
       while ((mem != nullptr) &&

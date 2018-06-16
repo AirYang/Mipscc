@@ -15,6 +15,8 @@ class Parser {
   std::pair<std::shared_ptr<Environment>, std::shared_ptr<Function>> parse();
   void showIr();
 
+  static int varWidth(std::shared_ptr<Identifier> var);
+
  private:
   void init();
 
@@ -101,8 +103,6 @@ class Parser {
   bool canAssign(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
   bool canMul(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
   bool canSub(std::shared_ptr<ReturnType> l, std::shared_ptr<ReturnType> r);
-
-  int varWidth(std::shared_ptr<Identifier> var);
 
   //   void showReturnType(std::shared_ptr<ReturnType> th);
 

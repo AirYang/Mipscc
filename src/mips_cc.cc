@@ -63,9 +63,8 @@ void Mipscc::run() {
   Assembler assembler(parse_result.first, parse_result.second);
   auto assemble_result = assembler.getMips();
   if (need_assembler_ && (assemble_result != nullptr)) {
-    std::for_each(
-        assemble_result->begin(), assemble_result->end(),
-        [](const std::string& str) { std::cout << str << std::endl; });
+    std::for_each(assemble_result->begin(), assemble_result->end(),
+                  [](const char& c) { std::cout << c; });
   }
   writeOut(assemble_result);
 }
@@ -77,11 +76,11 @@ void Mipscc::bufferInit() {
     ;
 }
 
-void Mipscc::writeOut(std::shared_ptr<std::vector<std::string>> out_buffer) {
+void Mipscc::writeOut(std::shared_ptr<std::string> out_buffer) {
   std::ofstream ofst(out_file_);
   assert(ofst.is_open());
   assert(out_buffer != nullptr);
   std::for_each(out_buffer->begin(), out_buffer->end(),
-                [&ofst](const std::string& str) { ofst << str << std::endl; });
+                [&ofst](const char& c) { ofst << c; });
   ofst.close();
 }

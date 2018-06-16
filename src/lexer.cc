@@ -238,7 +238,7 @@ Token Lexer::nextToken() {
     size_t tail = cur_ + 1;
     while ((tail < buffer_->size()) &&
            ((buffer_->at(tail) >= '0') && (buffer_->at(tail) <= '9'))) {
-      val = val * 10 + buffer_->at(cur_) - '0';
+      val = val * 10 + buffer_->at(tail) - '0';
       ++tail;
     }
     if (tail - cur_ > ans) {

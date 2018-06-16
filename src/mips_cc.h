@@ -14,7 +14,7 @@ class Mipscc {
 
  private:
   void bufferInit();
-  void writeOut(std::shared_ptr<std::vector<std::string>> out_buffer);
+  void writeOut(std::shared_ptr<std::string> out_buffer);
 
  private:
   std::string src_file_;
