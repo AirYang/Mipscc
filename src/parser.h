@@ -1,4 +1,5 @@
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "type.h"
@@ -11,7 +12,7 @@ class Parser {
   Parser(std::shared_ptr<std::vector<Token>> tokens);
 
  public:
-  void parse();
+  std::pair<std::shared_ptr<Environment>, std::shared_ptr<Function>> parse();
   void showIr();
 
  private:

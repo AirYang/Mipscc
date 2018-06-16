@@ -9,25 +9,35 @@
 // other include
 
 // this project other include
+#include "assembler.h"
 #include "lexer.h"
 #include "para_init.h"
 #include "parser.h"
 
 Mipscc::Mipscc(int argc, char** argv)
-    : file_(),
+    : src_file_(),
+      out_file_(),
       need_lexer_(false),
       need_parser_(false),
+      need_assembler_(false),
       buffer_(std::make_shared<std::vector<char>>()) {
   // program parameter init
   ParaInit pinit(argc, argv);
-  file_ = pinit.getFile();
+  src_file_ = pinit.getSrcFile();
+  out_file_ = pinit.getOutFile();
   need_lexer_ = pinit.needLexer();
   need_parser_ = pinit.needParser();
+  need_assembler_ = pinit.needAssembler();
 
   // input only *.c file
-  assert((file_.size() > 1) && (file_.find_last_of(".c") == file_.size() - 1));
+  assert((src_file_.size() > 1) &&
+         (src_file_.find_last_of(".c") == src_file_.size() - 1));
 
-  // read buffer from file
+  // output only *.s file
+  assert((out_file_.size() > 1) &&
+         (out_file_.find_last_of(".s") == out_file_.size() - 1));
+
+  // read buffer from src file
   bufferInit();
 }
 
@@ -42,15 +52,36 @@ void Mipscc::run() {
   }
 
   Parser parser(tokens);
-  parser.parse();
+  auto parse_result = parser.parse();
   if (need_parser_) {
     parser.showIr();
   }
+
+  // need out put file
+  // global
+  // func_header
+  Assembler assembler(parse_result.first, parse_result.second);
+  auto assemble_result = assembler.getMips();
+  if (need_assembler_ && (assemble_result != nullptr)) {
+    std::for_each(
+        assemble_result->begin(), assemble_result->end(),
+        [](const std::string& str) { std::cout << str << std::endl; });
+  }
+  writeOut(assemble_result);
 }
 
 void Mipscc::bufferInit() {
-  std::ifstream ifst(file_);
+  std::ifstream ifst(src_file_);
   assert(ifst.is_open());
   for (char c; ifst.get(c); buffer_->push_back(c))
     ;
+}
+
+void Mipscc::writeOut(std::shared_ptr<std::vector<std::string>> out_buffer) {
+  std::ofstream ofst(out_file_);
+  assert(ofst.is_open());
+  assert(out_buffer != nullptr);
+  std::for_each(out_buffer->begin(), out_buffer->end(),
+                [&ofst](const std::string& str) { ofst << str << std::endl; });
+  ofst.close();
 }

@@ -321,7 +321,7 @@ std::shared_ptr<ReturnType> parsePostfixExpr();
 // 解析标识符 整数常量 字符串常量 字符常量
 std::shared_ptr<ReturnType> parsePrimaryExpr();
 
-// 解析模块 { }
+// 解析模块 { } 中部分
 void parseCompoundStmt(std::shared_ptr<Block> iter_strt,
                          std::shared_ptr<Block> iter_end);
 

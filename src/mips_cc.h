@@ -14,11 +14,14 @@ class Mipscc {
 
  private:
   void bufferInit();
+  void writeOut(std::shared_ptr<std::vector<std::string>> out_buffer);
 
  private:
-  std::string file_;
+  std::string src_file_;
+  std::string out_file_;
   bool need_lexer_;
   bool need_parser_;
+  bool need_assembler_;
   std::shared_ptr<std::vector<char>> buffer_;
 };
 

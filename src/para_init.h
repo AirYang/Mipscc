@@ -8,9 +8,11 @@ class ParaInit {
   ParaInit(int argc, char** argv);
 
  public:
-  std::string getFile();
+  std::string getSrcFile();
+  std::string getOutFile();
   bool needLexer();
   bool needParser();
+  bool needAssembler();
 
  private:
   void parserInit();

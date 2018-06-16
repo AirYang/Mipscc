@@ -10,7 +10,8 @@ Parser::Parser(std::shared_ptr<std::vector<Token>> tokens)
   init();
 }
 
-void Parser::parse() {
+std::pair<std::shared_ptr<Environment>, std::shared_ptr<Function>>
+Parser::parse() {
   parsing_ = true;
   while (cur_ < tokens_->size()) {
     if (tokens_->at(cur_).literal_.compare("typedef")) {
@@ -114,6 +115,8 @@ void Parser::parse() {
     cur_func_ = nullptr;
   }
   parsing_ = false;
+
+  return {global_, func_head_};
 }
 
 void Parser::init() {
