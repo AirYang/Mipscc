@@ -2392,3 +2392,11 @@ void Parser::showIr() {
                             << ((ir->des_.get()) ? 1 : 0) << std::endl;
                 });
 }
+
+bool Parser::isIntStatic(std::shared_ptr<ReturnType> th) {
+  return (((th->ref_->type_ != nullptr) &&
+           (!th->ref_->type_->literal_.compare("char"))) ||
+          ((th->ref_->type_ != nullptr) &&
+           (!th->ref_->type_->literal_.compare("int")))) &&
+         (th->ref_->array_ == nullptr) && (!th->ref_->level_);
+}

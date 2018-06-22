@@ -17,6 +17,7 @@ class Parser {
 
   static int varWidth(std::shared_ptr<Identifier> var);
   static bool isPointer(std::shared_ptr<ReturnType> th);
+  static bool isIntStatic(std::shared_ptr<ReturnType> th);
 
  private:
   void init();

@@ -1,5 +1,7 @@
 #include "type.h"
 
+#include <cassert>
+
 const char* TypeToStr(Type tp) {
 #define TYPE_TO_STR(x) \
   case x:              \
@@ -87,7 +89,7 @@ bool IsUnary(Type tp) {
   }
 }
 
-bool IsBranch(Type tp) {
+bool IsBinary(Type tp) {
   return (tp >= Type::INS_ADD) && (tp <= Type::INS_REM);
 }
 
@@ -100,6 +102,8 @@ bool IsBtf(Type tp) {
     default: { return false; }
   }
 }
+
+bool IsBb(Type tp) { return (tp >= Type::INS_BLE) && (tp <= Type::INS_BEQ); }
 
 Environment::Environment(std::shared_ptr<Environment> pre)
     : pre_(pre), types_(nullptr), ids_(nullptr) {}
@@ -177,6 +181,24 @@ ReturnType::ReturnType()
       sp_offset_(0),
       belong_(nullptr),
       reg_(nullptr) {}
+
+std::string ReturnType::toString(std::shared_ptr<ReturnType> res) {
+  if (res->ret_type_ == CONST_VAL) {
+    return std::to_string(res->const_val_);
+  }
+
+  if (res->func_ != nullptr) {
+    return res->func_->id_;
+  }
+
+  if (res->reg_num_ == -1) {
+    return res->ref_->id_;
+  } else {
+    return "$" + std::to_string(res->reg_num_);
+  }
+
+  assert(false);
+}
 
 Instruction::Instruction()
     : ins_(Type::NOT_A_TYPE),

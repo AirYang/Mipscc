@@ -56,11 +56,19 @@ enum class Type {
   NOT_A_TYPE
 };
 
+struct EnumClassHash {
+  template <typename T>
+  std::size_t operator()(T t) const {
+    return static_cast<std::size_t>(t);
+  }
+};
+
 const char* TypeToStr(Type tp);
 bool IsBranch(Type tp);
 bool IsUnary(Type tp);
 bool IsBinary(Type tp);
 bool IsBtf(Type tp);
+bool IsBb(Type tp);
 
 class Token;
 class Function;
@@ -207,6 +215,8 @@ enum { VIRTUAL_REG = 1, ARRAY_ACCESS, CONST_VAL };
 class ReturnType {
  public:
   ReturnType();
+
+  static std::string toString(std::shared_ptr<ReturnType> res);
 
  public:
   int ret_type_;
