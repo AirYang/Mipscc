@@ -10,10 +10,36 @@ Assembler::Assembler(std::shared_ptr<Environment> global,
     : oss_(),
       global_(global),
       func_head_(func_head),
-      mipss_(std::make_shared<std::string>()) {}
+      mipss_(std::make_shared<std::string>()),
+      regs_() {
+  // reg init
+  for (size_t i = 0; i < 10; ++i) {
+    Register reg;
+    reg.literal_ = "$t" + std::to_string(i);
+    reg.ref_ = nullptr;
+    regs_.push_back(reg);
+  }
+
+  for (size_t i = 10; i < 18; ++i) {
+    Register reg;
+    reg.literal_ = "$s" + std::to_string(i - 10);
+    reg.ref_ = nullptr;
+    regs_.push_back(reg);
+  }
+
+  for (size_t i = 18; i < 21; ++i) {
+    Register reg;
+    reg.literal_ = "$a" + std::to_string(i - 17);
+    reg.ref_ = nullptr;
+    regs_.push_back(reg);
+  }
+}
 
 std::shared_ptr<std::string> Assembler::getMips() {
+  // data段
   getMipsStatic();
+  oss_ << ".text\n";
+
   *mipss_ = oss_.str();
   return mipss_;
 }
@@ -83,3 +109,17 @@ std::string Assembler::realGlobal(const std::string& str) {
     return "__" + str;
   }
 }
+
+int Assembler::paraWidth(std::shared_ptr<ReturnType> th) {
+  if ((th->ref_->array_ != nullptr) || (th->ref_->level_)) {
+    return 4;
+  } else if (!th->ref_->type_->literal_.compare("int")) {
+    return 4;
+  } else {
+    return th->ref_->type_->width_;
+  }
+}
+
+void Assembler::getMipsBlock(std::shared_ptr<Block> blck) {}
+
+void Assembler::getMipsInstruction(std::shared_ptr<Instruction> ins) {}

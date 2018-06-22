@@ -57,6 +57,10 @@ enum class Type {
 };
 
 const char* TypeToStr(Type tp);
+bool IsBranch(Type tp);
+bool IsUnary(Type tp);
+bool IsBinary(Type tp);
+bool IsBtf(Type tp);
 
 class Token;
 class Function;

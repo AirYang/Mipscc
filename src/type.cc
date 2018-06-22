@@ -61,6 +61,46 @@ const char* TypeToStr(Type tp) {
   return "Unsupported Type";
 }
 
+bool IsBranch(Type tp) {
+  switch (tp) {
+    case Type::INS_BNEZ:
+    case Type::INS_BEQZ:
+    case Type::INS_BLE:
+    case Type::INS_BLT:
+    case Type::INS_BGE:
+    case Type::INS_BGT:
+    case Type::INS_BNE:
+    case Type::INS_BEQ: {
+      return true;
+    }
+    default: { return false; }
+  }
+}
+
+bool IsUnary(Type tp) {
+  switch (tp) {
+    case Type::INS_NOT:
+    case Type::INS_NEG: {
+      return true;
+    }
+    default: { return false; }
+  }
+}
+
+bool IsBranch(Type tp) {
+  return (tp >= Type::INS_ADD) && (tp <= Type::INS_REM);
+}
+
+bool IsBtf(Type tp) {
+  switch (tp) {
+    case Type::INS_BNEZ:
+    case Type::INS_BEQZ: {
+      return true;
+    }
+    default: { return false; }
+  }
+}
+
 Environment::Environment(std::shared_ptr<Environment> pre)
     : pre_(pre), types_(nullptr), ids_(nullptr) {}
 

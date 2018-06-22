@@ -16,6 +16,7 @@ class Parser {
   void showIr();
 
   static int varWidth(std::shared_ptr<Identifier> var);
+  static bool isPointer(std::shared_ptr<ReturnType> th);
 
  private:
   void init();
@@ -96,7 +97,7 @@ class Parser {
   bool isString(std::shared_ptr<ReturnType> th);
   bool isInt(std::shared_ptr<ReturnType> th);
   bool isOneDim(std::shared_ptr<ReturnType> th);
-  bool isPointer(std::shared_ptr<ReturnType> th);
+
   bool isType();
   bool isBasicType(std::shared_ptr<PType> th);
   bool canPass(std::shared_ptr<ReturnType> a, std::shared_ptr<ReturnType> b);
