@@ -17,6 +17,8 @@ class Assembler {
   std::shared_ptr<std::string> getMips();
 
  private:
+  void optimization();
+
   void getMipsStatic();
   void getMipsBlock(std::shared_ptr<Block> blck);
   void getMipsInstruction(std::shared_ptr<Instruction> ins);

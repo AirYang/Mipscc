@@ -105,6 +105,20 @@ bool IsBtf(Type tp) {
 
 bool IsBb(Type tp) { return (tp >= Type::INS_BLE) && (tp <= Type::INS_BEQ); }
 
+bool IsCompare(Type tp) {
+  switch (tp) {
+    case Type::INS_SNE:
+    case Type::INS_SEQ:
+    case Type::INS_SLE:
+    case Type::INS_SLT:
+    case Type::INS_SGE:
+    case Type::INS_SGT: {
+      return true;
+    }
+    default: { return false; }
+  }
+}
+
 Environment::Environment(std::shared_ptr<Environment> pre)
     : pre_(pre), types_(nullptr), ids_(nullptr) {}
 

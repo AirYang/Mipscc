@@ -69,6 +69,7 @@ bool IsUnary(Type tp);
 bool IsBinary(Type tp);
 bool IsBtf(Type tp);
 bool IsBb(Type tp);
+bool IsCompare(Type tp);
 
 class Token;
 class Function;

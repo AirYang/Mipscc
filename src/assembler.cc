@@ -83,6 +83,9 @@ Assembler::Assembler(std::shared_ptr<Environment> global,
 }
 
 std::shared_ptr<std::string> Assembler::getMips() {
+  // optimization
+  optimization();
+
   // data段
   getMipsStatic();
   oss_ << ".text\n";
@@ -621,5 +624,120 @@ void Assembler::insLoadAddr(const std::string& reg,
     }
   } else {
     oss_ << "\tulw " << reg << ", " << th->sp_offset_ << "($sp)\n";
+  }
+}
+
+void Assembler::optimization() {
+  std::shared_ptr<Function> func = func_head_;
+  std::vector<int> blck_hsh(Block::blck_cnt_ + 1, 0);
+  for (bool code_change; func != nullptr; func = func->nxt_) {
+    for (code_change = true; code_change;) {
+      code_change = false;
+      if (func->block_ != nullptr) {
+        ++bfs_cnt_;
+        std::vector<std::shared_ptr<Block>> opt_que{func->block_};
+        blck_hsh[func->block_->id_] = bfs_cnt_;
+        for (size_t f = 0; f < opt_que.size(); ++f) {
+          std::shared_ptr<Block> a = opt_que[f]->condi_;
+          std::shared_ptr<Block> b = opt_que[f]->non_condi_;
+          if (a != nullptr) {
+            if (blck_hsh[a->id_] != bfs_cnt_) {
+              opt_que.push_back(a);
+              blck_hsh[a->id_] = bfs_cnt_;
+              ++a->in_deg_;
+            }
+          }
+          if (b != nullptr) {
+            if (blck_hsh[b->id_] != bfs_cnt_) {
+              opt_que.push_back(b);
+              blck_hsh[b->id_] = bfs_cnt_;
+              ++b->in_deg_;
+            }
+          }
+        }
+
+        for (size_t i = 0; i < opt_que.size(); ++i) {
+          if (opt_que[i]->ins_.size() >= 2) {
+            Instruction& a = opt_que[i]->ins_[opt_que[i]->ins_.size() - 2];
+            Instruction& b = opt_que[i]->ins_[opt_que[i]->ins_.size() - 1];
+            if (IsCompare(a.ins_)) {
+              if (b.ins_ == Type::INS_BEQZ) {
+                if (a.ins_ == Type::INS_SNE) {
+                  a.ins_ = Type::INS_BEQ;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SEQ) {
+                  a.ins_ = Type::INS_BNE;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SGE) {
+                  a.ins_ = Type::INS_BLT;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SLE) {
+                  a.ins_ = Type::INS_BGT;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SLT) {
+                  a.ins_ = Type::INS_BGE;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SGT) {
+                  a.ins_ = Type::INS_BLE;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                }
+              }
+              if (b.ins_ == Type::INS_BNEZ) {
+                if (a.ins_ == Type::INS_SNE) {
+                  a.ins_ = Type::INS_BNE;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SEQ) {
+                  a.ins_ = Type::INS_BEQ;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SGE) {
+                  a.ins_ = Type::INS_BGE;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SLE) {
+                  a.ins_ = Type::INS_BLE;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SLT) {
+                  a.ins_ = Type::INS_BLT;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                } else if (a.ins_ == Type::INS_SGT) {
+                  a.ins_ = Type::INS_BGT;
+                  opt_que[i]->ins_.pop_back();
+                  code_change = true;
+                }
+              }
+            }
+          }
+        }
+
+        for (size_t i = 0; i < opt_que.size(); ++i) {
+          if ((opt_que[i]->condi_ == nullptr) &&
+              (opt_que[i]->non_condi_ != nullptr) &&
+              (opt_que[i]->non_condi_ != func->end_) &&
+              (opt_que[i]->non_condi_->in_deg_ == 1)) {
+            std::shared_ptr<Block> nxt = opt_que[i]->non_condi_;
+            for (size_t j = 0; j < nxt->ins_.size(); ++j) {
+              opt_que[i]->ins_.push_back(nxt->ins_[j]);
+            }
+            opt_que[i]->non_condi_ = nxt->non_condi_;
+            opt_que[i]->condi_ = nxt->condi_;
+            code_change = true;
+          }
+        }
+
+        for (size_t i = 0; i < opt_que.size(); ++i) {
+          opt_que[i]->in_deg_ = 0;
+        }
+      }
+    }
   }
 }
